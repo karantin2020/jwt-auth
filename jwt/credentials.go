@@ -83,9 +83,7 @@ func (a *Auth) newCredentials(c *credentials, claims *ClaimsType) error {
 	if err != nil {
 		return errors.Wrap(err, "Error generating new csrf string")
 	}
-	// fmt.Println("New CsrfString is:", newCsrfString)
 	c.CsrfString = newCsrfString
-	// c.csrfEncrypter = a.csrfEncrypter
 
 	c.options.authTokenValidTime = a.options.AuthTokenValidTime
 	c.options.refreshTokenValidTime = a.options.RefreshTokenValidTime
@@ -176,16 +174,6 @@ func (c *credentials) validateCsrf() error {
 
 	return nil
 }
-
-// func (c *credentials) defaultValidator(r *http.Request) error {
-// 	u := r.URL
-// 	err := c.AuthToken.Validate(jwt.Expected{
-// 		Issuer:  u.Host,
-// 		Subject: from(r),
-// 		Time:    time.Now().UTC(),
-// 	})
-// 	return err
-// }
 
 func (c *credentials) RenewAuthToken(r *http.Request) error {
 	if !c.options.checkTokenId(c.RefreshToken.ID) {

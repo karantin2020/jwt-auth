@@ -135,20 +135,6 @@ func (a *Auth) setOptions(o *Options) error {
 	a.refreshStore = rs
 	a.csrfStore = &mixStore{o.CSRFTokenName}
 
-	// enc, err := jose.NewEncrypter(
-	// 	jose.ContentEncryption(o.EncryptMethodString),
-	// 	jose.Recipient{
-	// 		Algorithm: jose.DIRECT,
-	// 		Key:       o.CsrfEncryptKey,
-	// 	},
-	// 	(&jose.EncrypterOptions{}),
-	// )
-	// if err != nil {
-	// 	return errors.Wrap(err, "Couldn't create new encrypter")
-	// }
-
-	// a.csrfEncrypter = enc
-
 	a.options = *o
 
 	a.errorHandler = http.HandlerFunc(defaultErrorHandler)
@@ -286,9 +272,6 @@ func (a *Auth) Process(w http.ResponseWriter, r *http.Request) (string, error) {
 		}
 		return c.AuthToken.ID, errors.Wrap(err, "Invalid credentials")
 	}
-	// if err := c.Update(r); err != nil {
-	// 	return c.RefreshToken.ID, errors.Wrap(err, "Error updating credentials")
-	// }
 
 	// // if we've made it this far, everything is valid!
 	// // And tokens have been refreshed if need-be
@@ -325,12 +308,6 @@ func (a *Auth) IssueNewTokens(w http.ResponseWriter, claims *ClaimsType) error {
 // NullifyTokens : invalidate tokens
 // note @adam-hanna: what if there are no credentials in the request?
 func (a *Auth) NullifyTokens(tokenID string, w http.ResponseWriter) error {
-	// var c credentials
-	// err := a.getCredentials(r, &c)
-	// if err != nil {
-	// 	return errors.Wrap(err, "Error nullifiing credentials")
-	// }
-
 	a.authStore.Revoke(w)
 	a.refreshStore.Revoke(w)
 	a.csrfStore.Save("", w)
