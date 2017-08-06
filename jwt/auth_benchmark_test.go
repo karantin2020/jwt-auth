@@ -9,7 +9,7 @@ import (
 	//"net/url"
 	//"strings"
 	"testing"
-	// "time"
+	"time"
 )
 
 var msg = []byte("Hello world.\n")
@@ -200,77 +200,77 @@ func TestValidAuthTokenWithCookies(t *testing.T) {
 // 	}
 // }
 
-// func TestExpiredAuthTokenWithCookies(t *testing.T) {
-// 	a, authErr := New()
-// 	if authErr != nil {
-// 		t.Errorf("Failed to build jwt server; Err: %v", authErr)
-// 	}
+func TestExpiredAuthTokenWithCookies(t *testing.T) {
+	a, authErr := New()
+	if authErr != nil {
+		t.Errorf("Failed to build jwt server; Err: %v", authErr)
+		return
+	}
+	a.SetBearerTokens(false)
 
-// 	ts := httptest.NewServer(a.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-// 		w.Write(msg)
-// 	})))
-// 	defer ts.Close()
+	ts := httptest.NewServer(a.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write(msg)
+	})))
+	defer ts.Close()
 
-// 	as := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-// 		claims := ClaimsType{}
-// 		cstm := make(map[string]interface{})
-// 		cstm["Role"] = "user"
-// 		claims.Custom = cstm
+	as := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		claims := ClaimsType{}
+		claims.Subject = from(r)
 
-// 		a.IssueNewTokens(w, &claims)
-// 		fmt.Fprintln(w, "Hello, client")
-// 	}))
-// 	defer as.Close()
+		a.IssueNewTokens(w, &claims)
+		fmt.Fprintln(w, "Hello, client")
+	}))
+	defer as.Close()
 
-// 	// get credentials
-// 	resp, err := http.Get(as.URL)
-// 	if err != nil {
-// 		t.Errorf("Couldn't send request to test server; Err: %v", err)
-// 	}
-// 	rc := resp.Cookies()
-// 	var authCookieIndex int
-// 	var refreshCookieIndex int
+	// get credentials
+	resp, err := http.Get(as.URL)
+	if err != nil {
+		t.Errorf("Couldn't send request to test server; Err: %v", err)
+	}
+	rc := resp.Cookies()
+	if len(rc) == 0 {
+		t.Errorf("Couldn't get response cookies")
+		return
+	}
+	var authCookieIndex int
+	var refreshCookieIndex int
 
-// 	for i, cookie := range rc {
-// 		if cookie.Name == "AuthToken" {
-// 			authCookieIndex = i
-// 		}
-// 		if cookie.Name == "RefreshToken" {
-// 			refreshCookieIndex = i
-// 		}
-// 	}
+	for i, cookie := range rc {
+		if cookie.Name == "AuthToken" {
+			authCookieIndex = i
+		}
+		if cookie.Name == "RefreshToken" {
+			refreshCookieIndex = i
+		}
+	}
 
-// 	tr := &http.Transport{}
-// 	defer tr.CloseIdleConnections()
-// 	cl := &http.Client{
-// 		Transport: tr,
-// 	}
+	cl := &http.Client{}
 
-// 	req, err := http.NewRequest("GET", ts.URL, nil)
-// 	if err != nil {
-// 		t.Fatalf("Couldn't build request; Err: %v", err)
-// 	}
-// 	req.AddCookie(rc[authCookieIndex])
-// 	req.AddCookie(rc[refreshCookieIndex])
-// 	req.Header.Add("X-CSRF-Token", resp.Header.Get("X-CSRF-Token"))
+	req, err := http.NewRequest("GET", ts.URL, nil)
+	if err != nil {
+		t.Fatalf("Couldn't build request; Err: %v", err)
+	}
+	req.AddCookie(rc[authCookieIndex])
+	req.AddCookie(rc[refreshCookieIndex])
+	req.Header.Add("X-CSRF-Token", resp.Header.Get("X-CSRF-Token"))
 
-// 	// need to sleep to check expiry time differences
-// 	duration := time.Duration(1100) * time.Millisecond // Pause
-// 	time.Sleep(duration)
+	// need to sleep to check expiry time differences
+	duration := time.Duration(1100) * time.Millisecond // Pause
+	time.Sleep(duration)
 
-// 	// b.ResetTimer()
+	// b.ResetTimer()
 
-// 	// for i := 0; i < b.N; i++ {
-// 	res, err := cl.Do(req)
-// 	if err != nil {
-// 		t.Fatal("Get:", err)
-// 	}
-// 	all, err := ioutil.ReadAll(res.Body)
-// 	if err != nil {
-// 		t.Fatal("ReadAll:", err)
-// 	}
-// 	if !bytes.Equal(all, msg) {
-// 		t.Fatalf("Got body %q; want %q", all, msg)
-// 	}
-// 	// }
-// }
+	// for i := 0; i < b.N; i++ {
+	res, err := cl.Do(req)
+	if err != nil {
+		t.Fatal("Get:", err)
+	}
+	all, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal("ReadAll:", err)
+	}
+	if !bytes.Equal(all, msg) {
+		t.Fatalf("Got body %q; want %q", all, msg)
+	}
+	// }
+}
