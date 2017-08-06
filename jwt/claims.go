@@ -44,7 +44,7 @@ type ClaimsType struct {
 // 	Time time.Time
 // }
 
-func (c *ClaimsType) Validate(a *Auth, r *http.Request) error {
+func (c *ClaimsType) Validate(r *http.Request) error {
 	err := c.Claims.Validate(jwt.Expected{
 		Subject: from(r),
 		Time:    time.Now().UTC(),

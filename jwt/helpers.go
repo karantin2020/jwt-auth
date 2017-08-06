@@ -37,12 +37,16 @@ func getClaims(r *http.Request, name string) *ClaimsType {
 
 func GenerateNewCsrfString() (string, error) {
 	// note @adam-hanna: allow user's to set length?
-	newCsrf, err := generateRandomString(tokenLength)
+	newCsrf, err := generateRandomBytes(tokenLength)
 	if err != nil {
 		return "", errors.Wrap(err, "Error generate new csrf string")
 	}
+	bEnc := base64.StdEncoding.EncodeToString(newCsrf)
+	if len(bEnc) < tokenLength {
+		return "", errors.Wrap(err, "Error generate new csrf string")
+	}
 
-	return newCsrf, nil
+	return base64.StdEncoding.EncodeToString(newCsrf)[:tokenLength], nil
 }
 
 // mask returns a unique-per-request token to mitigate the BREACH attack

@@ -1,11 +1,11 @@
 package jwt
 
 import (
+	"fmt"
+	"github.com/pkg/errors"
+	// jose "gopkg.in/square/go-jose.v2"
 	"net/http"
 	"time"
-
-	"github.com/pkg/errors"
-	jose "gopkg.in/square/go-jose.v2"
 	// jwt "gopkg.in/square/go-jose.v2/jwt"
 )
 
@@ -25,11 +25,11 @@ type Auth struct {
 	revokeTokenByID    TokenRevoker
 	checkTokenId       TokenIdChecker
 	getTokenId         TokenIdGetter
-	verifyAuthToken    func(a *Auth, r *http.Request) error
-	verifyRefreshToken func(a *Auth, r *http.Request) error
+	verifyAuthToken    func(r *http.Request) error
+	verifyRefreshToken func(r *http.Request) error
 
 	// CsrfEncrypter aead
-	csrfEncrypter jose.Encrypter
+	// csrfEncrypter jose.Encrypter
 }
 
 const (
@@ -132,22 +132,22 @@ func (a *Auth) setOptions(o *Options) error {
 	if err != nil {
 		return errors.Wrap(err, "Error creating refresh store")
 	}
-	a.authStore = rs
+	a.refreshStore = rs
 	a.csrfStore = &mixStore{o.CSRFTokenName}
 
-	enc, err := jose.NewEncrypter(
-		jose.ContentEncryption(o.EncryptMethodString),
-		jose.Recipient{
-			Algorithm: jose.DIRECT,
-			Key:       o.CsrfEncryptKey,
-		},
-		(&jose.EncrypterOptions{}),
-	)
-	if err != nil {
-		return errors.Wrap(err, "Couldn't create new encrypter")
-	}
+	// enc, err := jose.NewEncrypter(
+	// 	jose.ContentEncryption(o.EncryptMethodString),
+	// 	jose.Recipient{
+	// 		Algorithm: jose.DIRECT,
+	// 		Key:       o.CsrfEncryptKey,
+	// 	},
+	// 	(&jose.EncrypterOptions{}),
+	// )
+	// if err != nil {
+	// 	return errors.Wrap(err, "Couldn't create new encrypter")
+	// }
 
-	a.csrfEncrypter = enc
+	// a.csrfEncrypter = enc
 
 	a.options = *o
 
@@ -181,12 +181,36 @@ func (a *Auth) SetCheckTokenIdFunction(checker TokenIdChecker) {
 	a.checkTokenId = checker
 }
 
-func (a *Auth) SetVerifyAuthFunction(fn func(a *Auth, r *http.Request) error) {
+func (a *Auth) SetVerifyAuthFunction(fn func(r *http.Request) error) {
 	a.verifyAuthToken = fn
 }
 
-func (a *Auth) SetVerifyRefreshFunction(fn func(a *Auth, r *http.Request) error) {
+func (a *Auth) SetVerifyRefreshFunction(fn func(r *http.Request) error) {
 	a.verifyRefreshToken = fn
+}
+
+func (a *Auth) SetBearerTokens(bt bool) error {
+	if a.authStore == nil || a.refreshStore == nil {
+		return errors.New("Auth.SetBearerTokens error: token store is not initialized")
+	}
+	a.options.BearerTokens = bt
+	a.authStore.bearerTokens = bt
+	a.refreshStore.bearerTokens = bt
+	var authName, refreshName string
+	if bt {
+		authName = defaultBearerAuthTokenName
+		refreshName = defaultBearerRefreshTokenName
+	} else {
+		authName = defaultCookieAuthTokenName
+		refreshName = defaultCookieRefreshTokenName
+	}
+	a.options.AuthTokenName = authName
+	a.options.RefreshTokenName = refreshName
+	a.authStore.tokenName = authName
+	a.authStore.cookieStore.name = authName
+	a.refreshStore.tokenName = refreshName
+	a.refreshStore.cookieStore.name = refreshName
+	return nil
 }
 
 // Handler implements the http.HandlerFunc for integration with the standard net/http lib.
@@ -200,10 +224,12 @@ func (a *Auth) Handler(h http.Handler) http.Handler {
 		if err != nil {
 			a.NullifyTokens(id, w)
 			if err == UnauthorizedRequest {
+				fmt.Println("Unauthorized processing")
 				a.unauthorizedHandler.ServeHTTP(w, r)
 				return
 			}
-
+			fmt.Println("Error processing")
+			fmt.Printf("%#v\n", err)
 			a.errorHandler.ServeHTTP(w, r)
 			return
 		}
@@ -251,9 +277,9 @@ func (a *Auth) Process(w http.ResponseWriter, r *http.Request) (string, error) {
 	}
 
 	// // check the credential's validity; updating expiry's if necessary and/or allowed
-	if err := c.Validate(a, r); err != nil {
+	if err := c.Validate(r); err != nil {
 		if err == AuthTokenExpired {
-			err = c.RenewAuthToken(a, r)
+			err = c.RenewAuthToken(r)
 			if err != nil {
 				return c.AuthToken.ID, errors.Wrap(err, "Invalid credentials")
 			}

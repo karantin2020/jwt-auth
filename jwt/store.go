@@ -110,6 +110,7 @@ type jwtStore struct {
 	encrypt             bool
 	signer              jose.Signer
 	encrypter           jose.Encrypter
+	csrfEncrypter       jose.Encrypter
 	signingMethodString string
 	encryptMethodString string
 	signKey             interface{}
@@ -145,11 +146,11 @@ func NewJWTStore(o *Options, tokName string, tokType int, enc bool) (*jwtStore, 
 			out.cookieStore.maxAge = int(o.RefreshTokenValidTime)
 		}
 	}
-	if enc {
-		out.encryptMethodString = o.EncryptMethodString
-		out.encryptKey = o.EncryptKey
-		out.decryptKey = o.DecryptKey
-	}
+	// if enc {
+	out.encryptMethodString = o.EncryptMethodString
+	out.encryptKey = o.EncryptKey
+	out.decryptKey = o.DecryptKey
+	// }
 	err := initJWTStore(out)
 	if err != nil {
 		return nil, errors.Wrap(err, "Error init jwtStore "+tokName)
@@ -163,6 +164,19 @@ func initJWTStore(js *jwtStore) error {
 		return errors.Wrapf(InternalServerError, "jwtStore was not properly initiated: %#v %#v %#v",
 			js.signingMethodString, js.signKey, js.encryptMethodString)
 	}
+
+	csrfEnc, err := jose.NewEncrypter(
+		jose.ContentEncryption(js.encryptMethodString),
+		jose.Recipient{
+			Algorithm: jose.DIRECT,
+			Key:       js.encryptKey,
+		},
+		&jose.EncrypterOptions{},
+	)
+	if err != nil {
+		return errors.Wrap(err, "Couldn't create new encrypter")
+	}
+	js.csrfEncrypter = csrfEnc
 
 	if !js.encrypt {
 		sig, err := jose.NewSigner(jose.SigningKey{
@@ -241,6 +255,16 @@ func (js jwtStore) ParseJWT(tokenString string) (*ClaimsType, error) {
 		if err := tok.Claims(js.verifyKey, &cl); err != nil {
 			return nil, errors.Wrap(err, "Error verify signed JWT")
 		}
+		parsed, err := jose.ParseEncrypted(cl.Csrf)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error in parse on msg '%s'", msg)
+		}
+		output, err := parsed.Decrypt(js.decryptKey.([]byte))
+		if err != nil {
+			return nil, errors.Wrapf(err, "error on decrypt")
+		}
+		cl.Csrf = string(output)
+
 	}
 	return &cl, nil
 }
@@ -252,8 +276,19 @@ func (js jwtStore) Encrypt(c *ClaimsType) (string, error) {
 	return jwt.SignedAndEncrypted(js.signer, js.encrypter).Claims(c).CompactSerialize()
 }
 
-// Save stores the JWT token in response header
+// Save stores the JWT token in response
 func (js jwtStore) Save(c *ClaimsType, w http.ResponseWriter) error {
+	if !js.encrypt {
+		csrfEncoded, err := js.csrfEncrypter.Encrypt([]byte(c.Csrf))
+		if err != nil {
+			return errors.Wrap(err, "Error encrypt claims csrf")
+		}
+		ce, err := csrfEncoded.CompactSerialize()
+		if err != nil {
+			return errors.Wrap(err, "Error encrypt compact serialize claims csrf")
+		}
+		c.Csrf = ce
+	}
 	token, err := js.Encrypt(c)
 	if err != nil {
 		return errors.Wrap(err, "Error encrypt claims")
@@ -296,12 +331,12 @@ func (ms mixStore) Get(r *http.Request) (string, error) {
 	// Retrieve token from the request
 	tokenString := r.Header.Get(ms.name)
 	if tokenString != "" {
-		return tokenString, nil
+		return unmaskString(tokenString), nil
 	}
 
 	tokenString = r.FormValue(ms.name)
 	if tokenString != "" {
-		return tokenString, nil
+		return unmaskString(tokenString), nil
 	}
 
 	auth := r.Header.Get("Authorization")

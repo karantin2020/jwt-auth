@@ -18,6 +18,9 @@ type credentials struct {
 	AuthToken    *ClaimsType
 	RefreshToken *ClaimsType
 
+	verifyAuthToken    func(r *http.Request) error
+	verifyRefreshToken func(r *http.Request) error
+
 	csrfEncrypter jose.Encrypter
 
 	options credentialsOptions
@@ -28,9 +31,6 @@ type credentialsOptions struct {
 	refreshTokenValidTime time.Duration
 
 	checkTokenId TokenIdChecker
-
-	verifyAuthToken    func(a *Auth, r *http.Request) error
-	verifyRefreshToken func(a *Auth, r *http.Request) error
 
 	verifyOnlyServer bool
 
@@ -64,12 +64,13 @@ func (a *Auth) getCredentials(r *http.Request, c *credentials) error {
 	}
 	c.CsrfString = cs
 
+	c.verifyAuthToken = a.verifyAuthToken
+	c.verifyRefreshToken = a.verifyRefreshToken
+
 	c.options = credentialsOptions{
 		authTokenValidTime:    a.options.AuthTokenValidTime,
 		refreshTokenValidTime: a.options.RefreshTokenValidTime,
 		checkTokenId:          a.checkTokenId,
-		verifyAuthToken:       a.verifyAuthToken,
-		verifyRefreshToken:    a.verifyRefreshToken,
 		verifyOnlyServer:      a.options.VerifyOnlyServer,
 		debug:                 a.options.Debug,
 	}
@@ -82,8 +83,9 @@ func (a *Auth) newCredentials(c *credentials, claims *ClaimsType) error {
 	if err != nil {
 		return errors.Wrap(err, "Error generating new csrf string")
 	}
+	// fmt.Println("New CsrfString is:", newCsrfString)
 	c.CsrfString = newCsrfString
-	c.csrfEncrypter = a.csrfEncrypter
+	// c.csrfEncrypter = a.csrfEncrypter
 
 	c.options.authTokenValidTime = a.options.AuthTokenValidTime
 	c.options.refreshTokenValidTime = a.options.RefreshTokenValidTime
@@ -102,16 +104,8 @@ func (a *Auth) newCredentials(c *credentials, claims *ClaimsType) error {
 		refreshClaims := deepcopy.Copy(claims)
 		c.RefreshToken = refreshClaims.(*ClaimsType)
 	}
-	encCsrf, err := c.csrfEncrypter.Encrypt([]byte(newCsrfString))
-	if err != nil {
-		return errors.Wrap(err, "Error encrypt csrf string")
-	}
-	encoded, err := encCsrf.CompactSerialize()
-	if err != nil {
-		return errors.Wrap(err, "Error encrypt csrf string")
-	}
 	c.AuthToken.ID = tokenId
-	c.AuthToken.Csrf = encoded
+	c.AuthToken.Csrf = newCsrfString
 	c.AuthToken.Expiry = jwt.NewNumericDate(time.Now().UTC().Add(a.options.AuthTokenValidTime))
 	c.AuthToken.NotBefore = jwt.NewNumericDate(time.Now().UTC())
 	c.AuthToken.IssuedAt = jwt.NewNumericDate(time.Now().UTC())
@@ -126,6 +120,12 @@ func (a *Auth) newCredentials(c *credentials, claims *ClaimsType) error {
 }
 
 func (a *Auth) setCredentials(w http.ResponseWriter, c *credentials) error {
+	if c.AuthToken == nil || c.RefreshToken == nil {
+		return errors.New("Auth.setCredentials error: nil pointer AuthToken or RefreshToken")
+	}
+	if a.authStore == nil || a.refreshStore == nil {
+		return errors.New("Auth.setCredentials error: nil pointer authStore or refreshStore")
+	}
 	err := a.authStore.Save(c.AuthToken, w)
 	if err != nil {
 		return errors.Wrap(err, "Error save auth JWT claims")
@@ -141,7 +141,7 @@ func (a *Auth) setCredentials(w http.ResponseWriter, c *credentials) error {
 	return nil
 }
 
-func (c *credentials) Validate(a *Auth, r *http.Request) error {
+func (c *credentials) Validate(r *http.Request) error {
 	err := c.validateCsrf()
 	if err != nil {
 		return errors.Wrap(err, "credentials.Validate: Error validate csrf string")
@@ -149,17 +149,19 @@ func (c *credentials) Validate(a *Auth, r *http.Request) error {
 	if c.AuthToken.ID != c.RefreshToken.ID || !c.options.checkTokenId(c.AuthToken.ID) {
 		return errors.New("credentials.Validate: Tokens ID is not valid")
 	}
-	err = c.AuthToken.Validate(a, r)
+	err = c.AuthToken.Validate(r)
 	if err != nil {
 		return AuthTokenExpired
+	}
+	if c.verifyAuthToken != nil {
+		err = c.verifyAuthToken(r)
+		if err != nil {
+			return AuthTokenNotValid
+		}
 	}
 
 	return nil
 }
-
-// func (c *credentials) Update(r *http.Request) error {
-// 	return nil
-// }
 
 func (c *credentials) validateCsrf() error {
 	// note @adam-hanna: check csrf in refresh token? Careful! These tokens are
@@ -185,13 +187,19 @@ func (c *credentials) validateCsrf() error {
 // 	return err
 // }
 
-func (c *credentials) RenewAuthToken(a *Auth, r *http.Request) error {
+func (c *credentials) RenewAuthToken(r *http.Request) error {
 	if !c.options.checkTokenId(c.RefreshToken.ID) {
 		return errors.New("Refresh token is not valid")
 	}
-	err := c.RefreshToken.Validate(a, r)
+	err := c.RefreshToken.Validate(r)
 	if err != nil {
-		return RefreshTokenNotValid
+		return errors.Wrap(err, "RenewAuthToken error: validate refresh token")
+	}
+	if c.verifyRefreshToken != nil {
+		err = c.verifyRefreshToken(r)
+		if err != nil {
+			return errors.Wrap(err, "RenewAuthToken error: validate refresh token")
+		}
 	}
 	// nope, the refresh token has not expired
 	// issue a new tokens with a new csrf and update all expiries
