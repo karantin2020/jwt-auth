@@ -265,7 +265,6 @@ func (a *Auth) Process(w http.ResponseWriter, r *http.Request) (string, error) {
 	// // check the credential's validity; updating expiry's if necessary and/or allowed
 	if err := c.Validate(r); err != nil {
 		if err == AuthTokenExpired {
-			fmt.Println("Auth token is expired. Renew Auth token")
 			err = c.RenewAuthToken(r)
 			if err != nil {
 				return c.AuthToken.ID, errors.Wrap(err, "Invalid credentials")
