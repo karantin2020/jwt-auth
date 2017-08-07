@@ -45,9 +45,9 @@ type ClaimsType struct {
 // }
 
 func (c *ClaimsType) Validate(r *http.Request) error {
-	err := c.Claims.Validate(jwt.Expected{
+	err := c.Claims.ValidateWithLeeway(jwt.Expected{
 		Subject: from(r),
 		Time:    time.Now().UTC(),
-	})
+	}, 0)
 	return err
 }

@@ -201,7 +201,16 @@ func TestValidAuthTokenWithCookies(t *testing.T) {
 // }
 
 func TestExpiredAuthTokenWithCookies(t *testing.T) {
-	a, authErr := New()
+	opts := Options{
+		RefreshTokenValidTime: 72 * time.Hour,
+		AuthTokenValidTime:    1 * time.Second,
+	}
+	err := DevelOpts(&opts)
+	if err != nil {
+		t.Errorf("Failed to build jwt server; Err: %v", err)
+		return
+	}
+	a, authErr := New(opts)
 	if authErr != nil {
 		t.Errorf("Failed to build jwt server; Err: %v", authErr)
 		return

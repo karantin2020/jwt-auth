@@ -104,15 +104,27 @@ func (a *Auth) newCredentials(c *credentials, claims *ClaimsType) error {
 	}
 	c.AuthToken.ID = tokenId
 	c.AuthToken.Csrf = newCsrfString
-	c.AuthToken.Expiry = jwt.NewNumericDate(time.Now().UTC().Add(a.options.AuthTokenValidTime))
-	c.AuthToken.NotBefore = jwt.NewNumericDate(time.Now().UTC())
-	c.AuthToken.IssuedAt = jwt.NewNumericDate(time.Now().UTC())
+	if int64(c.AuthToken.Expiry) == 0 {
+		c.AuthToken.Expiry = jwt.NewNumericDate(time.Now().UTC().Add(a.options.AuthTokenValidTime))
+	}
+	if int64(c.AuthToken.NotBefore) == 0 {
+		c.AuthToken.NotBefore = jwt.NewNumericDate(time.Now().UTC())
+	}
+	if int64(c.AuthToken.IssuedAt) == 0 {
+		c.AuthToken.IssuedAt = jwt.NewNumericDate(time.Now().UTC())
+	}
 
 	c.RefreshToken.ID = tokenId
 	c.RefreshToken.Csrf = newCsrfString
-	c.RefreshToken.Expiry = jwt.NewNumericDate(time.Now().UTC().Add(a.options.RefreshTokenValidTime))
-	c.RefreshToken.NotBefore = jwt.NewNumericDate(time.Now().UTC())
-	c.RefreshToken.IssuedAt = jwt.NewNumericDate(time.Now().UTC())
+	if int64(c.RefreshToken.Expiry) == 0 {
+		c.RefreshToken.Expiry = jwt.NewNumericDate(time.Now().UTC().Add(a.options.RefreshTokenValidTime))
+	}
+	if int64(c.RefreshToken.NotBefore) == 0 {
+		c.RefreshToken.NotBefore = jwt.NewNumericDate(time.Now().UTC())
+	}
+	if int64(c.RefreshToken.IssuedAt) == 0 {
+		c.RefreshToken.IssuedAt = jwt.NewNumericDate(time.Now().UTC())
+	}
 
 	return nil
 }
@@ -221,15 +233,7 @@ func from(req *http.Request) string {
 func (c *credentials) updateExpiryAndCsrf(newCsrfString string) error {
 	c.AuthToken.Expiry = jwt.NewNumericDate(time.Now().UTC().Add(c.options.authTokenValidTime))
 	c.RefreshToken.Expiry = jwt.NewNumericDate(time.Now().UTC().Add(c.options.refreshTokenValidTime))
-	encCsrf, err := c.csrfEncrypter.Encrypt([]byte(newCsrfString))
-	if err != nil {
-		return errors.Wrap(err, "Error encrypt csrf string")
-	}
-	encoded, err := encCsrf.CompactSerialize()
-	if err != nil {
-		return errors.Wrap(err, "Error encrypt csrf string")
-	}
-	c.AuthToken.Csrf = encoded
+	c.AuthToken.Csrf = newCsrfString
 	c.RefreshToken.Csrf = newCsrfString
 	return nil
 }
