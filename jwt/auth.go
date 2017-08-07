@@ -261,7 +261,6 @@ func (a *Auth) Process(w http.ResponseWriter, r *http.Request) (string, error) {
 	if err := a.getCredentials(r, &c); err != nil {
 		return "", errors.Wrap(err, "Auth.Process: Error getting auth credentials")
 	}
-	fmt.Printf("%#v\n", c.AuthToken)
 
 	// // check the credential's validity; updating expiry's if necessary and/or allowed
 	if err := c.Validate(r); err != nil {
@@ -274,7 +273,6 @@ func (a *Auth) Process(w http.ResponseWriter, r *http.Request) (string, error) {
 		}
 		return c.AuthToken.ID, errors.Wrap(err, "Invalid credentials")
 	}
-	fmt.Println("Auth token is not expired. Process...")
 
 	// // if we've made it this far, everything is valid!
 	// // And tokens have been refreshed if need-be
