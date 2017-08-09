@@ -161,7 +161,11 @@ func (c *credentials) Validate(r *http.Request) error {
 	}
 	err = c.AuthToken.Validate(r)
 	if err != nil {
-		return AuthTokenExpired
+		if err == jwt.ErrExpired {
+			return AuthTokenExpired
+		} else {
+			return AuthTokenNotValid
+		}
 	}
 	if c.verifyAuthToken != nil {
 		err = c.verifyAuthToken(r)

@@ -45,8 +45,12 @@ type ClaimsType struct {
 // }
 
 func (c *ClaimsType) Validate(r *http.Request) error {
+	var sbj string
+	if c.Subject != "" {
+		sbj = from(r)
+	}
 	err := c.Claims.ValidateWithLeeway(jwt.Expected{
-		Subject: from(r),
+		Subject: sbj,
 		Time:    time.Now().UTC(),
 	}, 0)
 	return err
