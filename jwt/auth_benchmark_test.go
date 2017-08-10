@@ -15,6 +15,10 @@ import (
 
 var msg = []byte("Hello world.\n")
 
+var (
+	debug = false
+)
+
 func TestBaseServer(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		rw.Write(msg)
@@ -52,6 +56,7 @@ func TestBaseServer(t *testing.T) {
 func TestValidAuthTokenWithCookies(t *testing.T) {
 	opts := []Options{}
 	a, authErr := New(opts...)
+	a.options.Debug = debug
 	if authErr != nil {
 		t.Errorf("Failed to build jwt server; Err: %v", authErr)
 		return
@@ -208,6 +213,7 @@ func TestExpiredAuthTokenWithCookies(t *testing.T) {
 		AuthTokenValidTime:    1 * time.Second,
 	}
 	err := DevelOpts(&opts)
+	opts.Debug = debug
 	if err != nil {
 		t.Errorf("Failed to build jwt server; Err: %v", err)
 		return
@@ -302,6 +308,7 @@ func TestAuthTokenWithHeader(t *testing.T) {
 		AuthTokenValidTime:    1 * time.Second,
 	}
 	err := DevelOpts(&dev_opts)
+	dev_opts.Debug = debug
 	if err != nil {
 		t.Errorf("Failed to build jwt server; Err: %v", err)
 		return
@@ -314,7 +321,9 @@ func TestAuthTokenWithHeader(t *testing.T) {
 		{
 			"Empty/devel options",
 			datas{
-				[]Options{},
+				[]Options{
+					dev_opts,
+				},
 				&ClaimsType{
 					Claims: jwt.Claims{
 						Subject: "127.0.0.1",
@@ -328,7 +337,9 @@ func TestAuthTokenWithHeader(t *testing.T) {
 		{
 			"Empty/devel options and empty claims",
 			datas{
-				[]Options{},
+				[]Options{
+					dev_opts,
+				},
 				&ClaimsType{},
 				true,
 				0,
@@ -338,7 +349,9 @@ func TestAuthTokenWithHeader(t *testing.T) {
 		{
 			"Empty/devel options and wrong claims",
 			datas{
-				[]Options{},
+				[]Options{
+					dev_opts,
+				},
 				&ClaimsType{
 					Claims: jwt.Claims{
 						Subject: "127.3.2.1",

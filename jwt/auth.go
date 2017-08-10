@@ -1,8 +1,9 @@
 package jwt
 
 import (
-	"fmt"
+	// "fmt"
 	"github.com/pkg/errors"
+	"log"
 	// jose "gopkg.in/square/go-jose.v2"
 	"net/http"
 	"time"
@@ -210,12 +211,12 @@ func (a *Auth) Handler(h http.Handler) http.Handler {
 		if err != nil {
 			a.NullifyTokens(id, w)
 			if err == UnauthorizedRequest {
-				fmt.Println("Unauthorized processing")
+				a.pkgLog("Unauthorized processing\n")
 				a.unauthorizedHandler.ServeHTTP(w, r)
 				return
 			}
-			fmt.Println("Error processing")
-			fmt.Printf("%#v\n", err)
+			a.pkgLog("Error processing\n")
+			a.pkgLog("%#v\n", err)
 			a.errorHandler.ServeHTTP(w, r)
 			return
 		}
@@ -261,12 +262,12 @@ func (a *Auth) Process(w http.ResponseWriter, r *http.Request) (string, error) {
 	if err := a.getCredentials(r, &c); err != nil {
 		return "", errors.Wrap(err, "Auth.Process: Error getting auth credentials")
 	}
-	fmt.Printf("%#v\n", c.AuthToken)
+	a.pkgLog("%#v\n", c.AuthToken)
 
 	// // check the credential's validity; updating expiry's if necessary and/or allowed
 	if err := c.Validate(r); err != nil {
 		if err == AuthTokenExpired {
-			fmt.Println("Auth token is expired. Renew Auth token")
+			a.pkgLog("Auth token is expired. Renew Auth token\n")
 			err = c.RenewAuthToken(r)
 			if err != nil {
 				return c.AuthToken.ID, errors.Wrap(err, "Invalid credentials")
@@ -274,7 +275,7 @@ func (a *Auth) Process(w http.ResponseWriter, r *http.Request) (string, error) {
 		}
 		return c.AuthToken.ID, errors.Wrap(err, "Invalid credentials")
 	}
-	fmt.Println("Auth token is not expired. Process...")
+	a.pkgLog("Auth token is not expired. Process...\n")
 
 	// // if we've made it this far, everything is valid!
 	// // And tokens have been refreshed if need-be
@@ -334,4 +335,10 @@ func (a *Auth) GrabTokenClaims(r *http.Request) (*ClaimsType, error) {
 	}
 
 	return ca, nil
+}
+
+func (c *Auth) pkgLog(format string, v ...interface{}) {
+	if c.options.Debug {
+		log.Printf(format, v...)
+	}
 }
