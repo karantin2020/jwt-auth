@@ -365,6 +365,22 @@ func TestAuthTokenWithHeader(t *testing.T) {
 			},
 			false,
 		},
+		{
+			"Devel options and cookie tokens",
+			datas{
+				[]Options{
+					dev_opts,
+				},
+				&ClaimsType{
+					Claims: jwt.Claims{
+						Subject: "127.0.0.1",
+					},
+				},
+				false,
+				time.Duration(1500) * time.Millisecond,
+			},
+			false,
+		},
 	}
 
 	for _, tt := range tests {
