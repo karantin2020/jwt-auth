@@ -1,6 +1,7 @@
 package jwt
 
 import (
+	"io/ioutil"
 	"time"
 
 	"github.com/pkg/errors"
@@ -11,6 +12,8 @@ import (
 type Options struct {
 	SigningMethodString string
 	EncryptMethodString string
+	PrivateKeyLocation  string
+	PublicKeyLocation   string
 	SignKey             interface{}
 	VerifyKey           interface{}
 	EncryptKey          interface{}
@@ -65,8 +68,14 @@ func DefOpts(o *Options) error {
 	if o.CSRFTokenName == "" {
 		o.CSRFTokenName = defaultCSRFTokenName
 	}
-	if o.SignKey == nil || o.VerifyKey == nil {
-		return errors.New("SignKey and VerifyKey must be defined")
+	if (o.SignKey == nil && !o.VerifyOnlyServer) || o.VerifyKey == nil {
+		// create the sign and verify keys
+		signKey, verifyKey, err := o.buildSignAndVerifyKeys()
+		if err != nil {
+			return errors.Wrap(err, "Error buildSignAndVerifyKeys")
+		}
+		o.SignKey = signKey
+		o.VerifyKey = verifyKey
 	}
 	if o.EncryptKey == nil || o.DecryptKey == nil {
 		return errors.New("EncryptKey and DecryptKey must be defined")
@@ -108,4 +117,109 @@ func DevelOpts(o *Options) error {
 	// repeat here to init default empty development options
 	o.IsDevEnv = true
 	return nil
+}
+
+func (o *Options) buildSignAndVerifyKeys() (signKey interface{}, verifyKey interface{}, err error) {
+	if o.SigningMethodString == "HS256" || o.SigningMethodString == "HS384" || o.SigningMethodString == "HS512" {
+		return o.buildHMACKeys()
+
+	} else if o.SigningMethodString == "RS256" || o.SigningMethodString == "RS384" || o.SigningMethodString == "RS512" {
+		return o.buildRSAKeys()
+
+	} else if o.SigningMethodString == "ES256" || o.SigningMethodString == "ES384" || o.SigningMethodString == "ES512" {
+		return o.buildESKeys()
+
+	}
+
+	err = errors.New("Signing method string not recognized!")
+	return
+}
+
+func (o *Options) buildHMACKeys() (signKey interface{}, verifyKey interface{}, err error) {
+	if !o.VerifyOnlyServer {
+		signKey = o.SignKey
+	}
+	verifyKey = o.VerifyKey
+
+	return
+}
+
+func (o *Options) buildRSAKeys() (signKey interface{}, verifyKey interface{}, err error) {
+	var signBytes []byte
+	var verifyBytes []byte
+
+	// check to make sure the provided options are valid
+	if o.PrivateKeyLocation == "" && !o.VerifyOnlyServer {
+		err = errors.New("Private key location is required!")
+		return
+	}
+	if o.PublicKeyLocation == "" {
+		err = errors.New("Public key location is required!")
+		return
+	}
+
+	// read the key files
+	if !o.VerifyOnlyServer {
+		signBytes, err = ioutil.ReadFile(o.PrivateKeyLocation)
+		if err != nil {
+			return
+		}
+
+		signKey, err = ParseRSAPrivateKeyFromPEM(signBytes)
+		if err != nil {
+			return
+		}
+	}
+
+	verifyBytes, err = ioutil.ReadFile(o.PublicKeyLocation)
+	if err != nil {
+		return
+	}
+
+	verifyKey, err = ParseRSAPublicKeyFromPEM(verifyBytes)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func (o *Options) buildESKeys() (signKey interface{}, verifyKey interface{}, err error) {
+	var signBytes []byte
+	var verifyBytes []byte
+
+	// check to make sure the provided options are valid
+	if o.PrivateKeyLocation == "" && !o.VerifyOnlyServer {
+		err = errors.New("Private key location is required!")
+		return
+	}
+	if o.PublicKeyLocation == "" {
+		err = errors.New("Public key location is required!")
+		return
+	}
+
+	// read the key files
+	if !o.VerifyOnlyServer {
+		signBytes, err = ioutil.ReadFile(o.PrivateKeyLocation)
+		if err != nil {
+			return
+		}
+
+		signKey, err = ParseECPrivateKeyFromPEM(signBytes)
+		if err != nil {
+			return
+		}
+	}
+
+	verifyBytes, err = ioutil.ReadFile(o.PublicKeyLocation)
+	if err != nil {
+		return
+	}
+
+	verifyKey, err = ParseECPublicKeyFromPEM(verifyBytes)
+	if err != nil {
+		return
+	}
+
+	return
 }
