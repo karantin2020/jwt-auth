@@ -1,13 +1,10 @@
 package jwt
 
 import (
-	// "fmt"
 	"github.com/pkg/errors"
 	"log"
-	// jose "gopkg.in/square/go-jose.v2"
 	"net/http"
 	"time"
-	// jwt "gopkg.in/square/go-jose.v2/jwt"
 )
 
 // Auth is a struct that provides jwt based authentication.
@@ -28,9 +25,6 @@ type Auth struct {
 	getTokenId         TokenIdGetter
 	verifyAuthToken    func(r *http.Request) error
 	verifyRefreshToken func(r *http.Request) error
-
-	// CsrfEncrypter aead
-	// csrfEncrypter jose.Encrypter
 }
 
 const (

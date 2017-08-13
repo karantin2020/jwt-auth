@@ -1,15 +1,10 @@
 package jwt
 
 import (
-	// "io/ioutil"
-	// "net/http"
-	// "reflect"
-	// "strconv"
 	"time"
 
 	"github.com/pkg/errors"
 	jose "gopkg.in/square/go-jose.v2"
-	// jwt "gopkg.in/square/go-jose.v2/jwt"
 )
 
 // Options is a struct for specifying configuration options
@@ -105,13 +100,6 @@ func DevelOpts(o *Options) error {
 		o.EncryptKey = ed
 		o.DecryptKey = ed
 	}
-	// if o.CsrfEncryptKey == nil {
-	// 	ck, err := generateRandomBytes(32)
-	// 	if err != nil {
-	// 		return errors.Wrap(err, "Error generating csrfEncrypt key")
-	// 	}
-	// 	o.CsrfEncryptKey = ck
-	// }
 	o.VerifyOnlyServer = false
 	o.Path = "/"
 	o.Domain = "localhost"

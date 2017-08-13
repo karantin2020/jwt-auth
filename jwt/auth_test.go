@@ -1,11 +1,9 @@
 package jwt
 
 import (
-	// "fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	// jose "gopkg.in/square/go-jose.v2"
 )
 
 func TestAuth_New(t *testing.T) {
@@ -26,7 +24,6 @@ func TestAuth_New(t *testing.T) {
 			if err != nil {
 				t.Errorf("Auth.IssueNewTokens() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			// fmt.Printf("%#v\n", a)
 		})
 	}
 }
