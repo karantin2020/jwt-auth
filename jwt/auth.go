@@ -260,7 +260,7 @@ func (a *Auth) Process(w http.ResponseWriter, r *http.Request) (string, error) {
 	// grab the credentials from the request
 	var c credentials
 	if err := a.getCredentials(r, &c); err != nil {
-		return "", errors.Wrap(err, "Auth.Process: Error getting auth credentials")
+		return "", UnauthorizedRequest
 	}
 	a.pkgLog("%#v\n", c.AuthToken)
 
@@ -270,10 +270,10 @@ func (a *Auth) Process(w http.ResponseWriter, r *http.Request) (string, error) {
 			a.pkgLog("Auth token is expired. Renew Auth token\n")
 			err = c.RenewAuthToken(r)
 			if err != nil {
-				return c.AuthToken.ID, errors.Wrap(err, "Invalid credentials")
+				return c.AuthToken.ID, UnauthorizedRequest
 			}
 		}
-		return c.AuthToken.ID, errors.Wrap(err, "Invalid credentials")
+		return c.AuthToken.ID, UnauthorizedRequest
 	}
 	a.pkgLog("Auth token is not expired. Process...\n")
 
