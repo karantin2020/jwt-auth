@@ -88,16 +88,6 @@ func defaultUnauthorizedHandler(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-// func defaultValidator(a *Auth, r *http.Request) error {
-// 	u := r.URL
-// 	err := c.Claims.Validate(jwt.Expected{
-// 		Issuer:  a.options.Issuer,
-// 		Subject: from(r),
-// 		Time:    time.Now().UTC(),
-// 	})
-// 	return err
-// }
-
 // New constructs a new Auth instance with supplied options.
 func New(o ...Options) (*Auth, error) {
 	var opts Options
