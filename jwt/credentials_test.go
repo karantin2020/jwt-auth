@@ -9,12 +9,7 @@ import (
 )
 
 func TestAuth_newCredentials(t *testing.T) {
-	opts := Options{}
-	err := DevelOpts(&opts)
-	if err != nil {
-		t.Errorf("TestAuth_newCredentials: couldn't create devel options")
-	}
-	auth, err := New(opts)
+	auth, err := NewAuth()
 	if err != nil {
 		t.Errorf("TestAuth_newCredentials: couldn't create new Auth instance")
 	}
@@ -55,7 +50,7 @@ func TestAuth_newCredentials(t *testing.T) {
 }
 
 func TestAuth_setCredentials(t *testing.T) {
-	auth, err := New()
+	auth, err := NewAuth()
 	if err != nil {
 		t.Errorf("TestAuth_newCredentials: couldn't create new Auth instance")
 	}

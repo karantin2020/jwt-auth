@@ -54,9 +54,8 @@ func TestBaseServer(t *testing.T) {
 }
 
 func TestValidAuthTokenWithCookies(t *testing.T) {
-	opts := []Options{}
-	a, authErr := New(opts...)
-	a.options.Debug = debug
+	opts := []func(o *Options) error{}
+	a, authErr := NewAuth(opts...)
 	if authErr != nil {
 		t.Errorf("Failed to build jwt server; Err: %v", authErr)
 		return
@@ -131,7 +130,7 @@ func TestValidAuthTokenWithCookies(t *testing.T) {
 // func TestValidAuthTokenWithBearerTokens(t *testing.T) {
 // 	var a Auth
 // 	var c credentials
-// 	authErr := New(&a, Options{
+// 	authErr := NewAuth(&a, Options{
 // 		SigningMethodString: "HS256",
 // 		HMACKey: []byte(`#5K+¥¼ƒ~ew{¦Z³(æðTÉ(©„²ÒP.¿ÓûZ’ÒGï–Š´Ãwb="=.!r.OÀÍšõgÐ€£`),
 // 		RefreshTokenValidTime: 72 * time.Hour,
@@ -208,17 +207,13 @@ func TestValidAuthTokenWithCookies(t *testing.T) {
 // }
 
 func TestExpiredAuthTokenWithCookies(t *testing.T) {
-	opts := Options{
-		RefreshTokenValidTime: 72 * time.Hour,
-		AuthTokenValidTime:    1 * time.Second,
+	dev_opts := func(o *Options) error {
+		o.RefreshTokenValidTime = 72 * time.Hour
+		o.AuthTokenValidTime = 1 * time.Second
+		o.IsDevEnv = true
+		return nil
 	}
-	err := DevelOpts(&opts)
-	opts.Debug = debug
-	if err != nil {
-		t.Errorf("Failed to build jwt server; Err: %v", err)
-		return
-	}
-	a, authErr := New(opts)
+	a, authErr := NewAuth(dev_opts)
 	if authErr != nil {
 		t.Errorf("Failed to build jwt server; Err: %v", authErr)
 		return
@@ -294,7 +289,7 @@ func TestExpiredAuthTokenWithCookies(t *testing.T) {
 
 func TestAuthTokenWithHeader(t *testing.T) {
 	type datas struct {
-		opts   []Options
+		opts   []func(o *Options) error
 		cl     *ClaimsType
 		bearer bool
 		wait   time.Duration
@@ -303,16 +298,22 @@ func TestAuthTokenWithHeader(t *testing.T) {
 		token string
 		w     http.ResponseWriter
 	}
-	dev_opts := Options{
-		RefreshTokenValidTime: 72 * time.Hour,
-		AuthTokenValidTime:    1 * time.Second,
+	dev_opts := func(o *Options) error {
+		o.RefreshTokenValidTime = 72 * time.Hour
+		o.AuthTokenValidTime = 1 * time.Second
+		o.IsDevEnv = true
+		return nil
 	}
-	err := DevelOpts(&dev_opts)
-	dev_opts.Debug = debug
-	if err != nil {
-		t.Errorf("Failed to build jwt server; Err: %v", err)
-		return
-	}
+	// dev_opts := Options{
+	// 	RefreshTokenValidTime: 72 * time.Hour,
+	// 	AuthTokenValidTime:    1 * time.Second,
+	// }
+	// err := DevelOpts(&dev_opts)
+	// dev_opts.Debug = debug
+	// if err != nil {
+	// 	t.Errorf("Failed to build jwt server; Err: %v", err)
+	// 	return
+	// }
 	tests := []struct {
 		name    string
 		data    datas
@@ -321,7 +322,7 @@ func TestAuthTokenWithHeader(t *testing.T) {
 		{
 			"Empty/devel options",
 			datas{
-				[]Options{
+				[]func(o *Options) error{
 					dev_opts,
 				},
 				&ClaimsType{
@@ -337,7 +338,7 @@ func TestAuthTokenWithHeader(t *testing.T) {
 		{
 			"Empty/devel options and empty claims",
 			datas{
-				[]Options{
+				[]func(o *Options) error{
 					dev_opts,
 				},
 				&ClaimsType{},
@@ -349,7 +350,7 @@ func TestAuthTokenWithHeader(t *testing.T) {
 		{
 			"Empty/devel options and wrong claims",
 			datas{
-				[]Options{
+				[]func(o *Options) error{
 					dev_opts,
 				},
 				&ClaimsType{
@@ -365,7 +366,7 @@ func TestAuthTokenWithHeader(t *testing.T) {
 		{
 			"Devel options and bearer tokens",
 			datas{
-				[]Options{
+				[]func(o *Options) error{
 					dev_opts,
 				},
 				&ClaimsType{
@@ -381,7 +382,7 @@ func TestAuthTokenWithHeader(t *testing.T) {
 		{
 			"Devel options and cookie tokens",
 			datas{
-				[]Options{
+				[]func(o *Options) error{
 					dev_opts,
 				},
 				&ClaimsType{
@@ -398,7 +399,7 @@ func TestAuthTokenWithHeader(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			a, authErr := New(tt.data.opts...)
+			a, authErr := NewAuth(tt.data.opts...)
 			if authErr != nil {
 				t.Errorf("Failed to make new Auth; Err: %v", authErr)
 				return

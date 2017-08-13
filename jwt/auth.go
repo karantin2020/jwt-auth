@@ -89,24 +89,29 @@ func defaultUnauthorizedHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // New constructs a new Auth instance with supplied options.
-func New(o ...Options) (*Auth, error) {
+func NewAuth(fopts ...func(o *Options) error) (*Auth, error) {
 	var opts Options
-	var err error
-	if len(o) == 0 {
-		opts = Options{}
-		err = DevelOpts(&opts)
-		if err != nil {
-			return nil, errors.Wrap(err, "Error init development options")
-		}
-	} else {
-		opts = (o[0])
-		err = DefOpts(&opts)
+	for _, fn := range fopts {
+		err := fn(&opts)
 		if err != nil {
 			return nil, errors.Wrap(err, "Error init auth options")
 		}
 	}
+
+	if opts.IsDevEnv || len(fopts) == 0 {
+		err := DevelOpts(&opts)
+		if err != nil {
+			return nil, errors.Wrap(err, "Error init development options")
+		}
+	} else {
+		err := DefOpts(&opts)
+		if err != nil {
+			return nil, errors.Wrap(err, "Error init default auth options")
+		}
+	}
+
 	auth := &Auth{}
-	err = auth.setOptions(&opts)
+	err := auth.setOptions(&opts)
 	if err != nil {
 		return nil, errors.Wrap(err, "Error setting auth options")
 	}
@@ -262,6 +267,7 @@ func (a *Auth) Process(w http.ResponseWriter, r *http.Request) (string, error) {
 			if err != nil {
 				return c.AuthToken.ID, UnauthorizedRequest
 			}
+			return c.AuthToken.ID, nil
 		}
 		return c.AuthToken.ID, UnauthorizedRequest
 	}

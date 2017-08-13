@@ -11,7 +11,7 @@ import (
 func TestAuth_New(t *testing.T) {
 	tests := []struct {
 		name    string
-		fields  []Options
+		fields  []func(*Options) error
 		wantErr bool
 	}{
 		{
@@ -22,7 +22,7 @@ func TestAuth_New(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := New(tt.fields...)
+			_, err := NewAuth(tt.fields...)
 			if err != nil {
 				t.Errorf("Auth.IssueNewTokens() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -38,7 +38,7 @@ func TestAuth_IssueNewTokens(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		fields  []Options
+		fields  []func(*Options) error
 		args    args
 		wantErr bool
 	}{
@@ -59,7 +59,7 @@ func TestAuth_IssueNewTokens(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			a, err := New(tt.fields...)
+			a, err := NewAuth(tt.fields...)
 			if err != nil {
 				t.Errorf("Auth.IssueNewTokens() error = %v, wantErr %v", err, tt.wantErr)
 				return

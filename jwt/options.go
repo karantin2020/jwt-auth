@@ -117,6 +117,7 @@ func DevelOpts(o *Options) error {
 	o.Domain = "localhost"
 	o.BearerTokens = true
 	o.Debug = true
+	// repeat here to init default empty development options
 	o.IsDevEnv = true
 	return nil
 }
