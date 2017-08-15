@@ -190,6 +190,14 @@ func (a *Auth) SetBearerTokens(bt bool) error {
 	return nil
 }
 
+func JwtAuth(fopts ...func(o *Options) error) func(next http.Handler) http.Handler {
+	a, authErr := NewAuth(fopts...)
+	if authErr != nil {
+		panic("Failed to init new JwtAuth middleware; Err: " + authErr.Error())
+	}
+	return a.Handler
+}
+
 // Handler implements the http.HandlerFunc for integration with the standard net/http lib.
 func (a *Auth) Handler(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
