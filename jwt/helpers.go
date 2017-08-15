@@ -4,35 +4,22 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
-	// "html/template"
 	"net/http"
 	"net/url"
 
 	"github.com/pkg/errors"
 )
 
-// AuthClaims returns Auth ClaimsType instance from request context.
-// Nil will be returned if the middleware
-// has not been applied (which will fail subsequent validation).
-func (a *Auth) AuthClaims(r *http.Request) *ClaimsType {
-	return getClaims(r, a.options.AuthTokenName)
-}
-
-// RefreshClaims returns Refresh ClaimsType instance from request context.
-// Nil will be returned if the middleware
-// has not been applied (which will fail subsequent validation).
-func (a *Auth) RefreshClaims(r *http.Request) *ClaimsType {
-	return getClaims(r, a.options.RefreshTokenName)
-}
-
-func getClaims(r *http.Request, name string) *ClaimsType {
-	if val, err := contextGet(r, name); err == nil {
-		if claims, ok := val.(*ClaimsType); ok {
-			return claims
-		}
+// AuthToken returns auth token claims
+func AuthClaims(r *http.Request) (*ClaimsType, error) {
+	val, err := contextGet(r, authTokenKey)
+	if err != nil {
+		return nil, errors.Wrap(err, "Error get auth token claims from request context")
 	}
-
-	return nil
+	if auth_token, ok := val.(*ClaimsType); ok {
+		return auth_token, nil
+	}
+	return nil, errors.New("Invalid auth token claims context")
 }
 
 func GenerateNewCsrfString() (string, error) {

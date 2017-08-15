@@ -35,6 +35,7 @@ const (
 	defaultCSRFTokenName          = "X-CSRF-Token"
 	defaultCookieAuthTokenName    = "AuthToken"
 	defaultCookieRefreshTokenName = "RefreshToken"
+	authTokenKey                  = "jwtAuth.jwt.auth.Token"
 )
 
 // CSRF token length in bytes.
@@ -66,7 +67,7 @@ type TokenIdChecker func(tokenId string) bool
 
 func defaultGetTokenId() string {
 	// return empty string
-	return ""
+	return NewTokenId()
 }
 
 // TokenIdGetter : a type to get token ids
@@ -192,13 +193,19 @@ func (a *Auth) SetBearerTokens(bt bool) error {
 // Handler implements the http.HandlerFunc for integration with the standard net/http lib.
 func (a *Auth) Handler(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// if next handler is nil then raise an error
+		if h == nil {
+			a.errorHandler.ServeHTTP(w, r)
+			return
+		}
+
 		// Process the request. If it returns an error,
 		// that indicates the request should not continue.
-		id, err := a.Process(w, r)
+		auth_token, err := a.Process(w, r)
 
 		// If there was an error, do not continue.
 		if err != nil {
-			a.NullifyTokens(id, w)
+			a.NullifyTokens(auth_token.ID, w)
 			if err == UnauthorizedRequest {
 				a.pkgLog("Unauthorized processing\n")
 				a.unauthorizedHandler.ServeHTTP(w, r)
@@ -209,7 +216,9 @@ func (a *Auth) Handler(h http.Handler) http.Handler {
 			a.errorHandler.ServeHTTP(w, r)
 			return
 		}
-
+		if auth_token != nil {
+			r = contextSave(r, authTokenKey, auth_token)
+		}
 		h.ServeHTTP(w, r)
 	})
 }
@@ -224,32 +233,33 @@ func (a *Auth) HandlerFunc(fn http.HandlerFunc) http.Handler {
 
 // HandlerFuncWithNext is a special implementation for Negroni, but could be used elsewhere.
 func (a *Auth) HandlerFuncWithNext(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
-	id, err := a.Process(w, r)
+	auth_token, err := a.Process(w, r)
 
 	// If there was an error, do not call next.
 	if err == nil && next != nil {
 		next(w, r)
 	} else {
-		_ = a.NullifyTokens(id, w)
+		_ = a.NullifyTokens(auth_token.ID, w)
 		if err == UnauthorizedRequest {
 			a.unauthorizedHandler.ServeHTTP(w, r)
-		} else {
-			a.errorHandler.ServeHTTP(w, r)
+			return
 		}
+		a.errorHandler.ServeHTTP(w, r)
+		return
 	}
 }
 
 // Process runs the actual checks and returns an error if the middleware chain should stop.
-func (a *Auth) Process(w http.ResponseWriter, r *http.Request) (string, error) {
+func (a *Auth) Process(w http.ResponseWriter, r *http.Request) (*ClaimsType, error) {
 	// cookies aren't included with options, so simply pass through
 	if r.Method == "OPTIONS" {
-		return "", nil
+		return nil, nil
 	}
 
 	// grab the credentials from the request
 	var c credentials
 	if err := a.getCredentials(r, &c); err != nil {
-		return "", UnauthorizedRequest
+		return nil, UnauthorizedRequest
 	}
 	a.pkgLog("%#v\n", c.AuthToken)
 
@@ -259,11 +269,11 @@ func (a *Auth) Process(w http.ResponseWriter, r *http.Request) (string, error) {
 			a.pkgLog("Auth token is expired. Renew Auth token\n")
 			err = c.RenewAuthToken(r)
 			if err != nil {
-				return c.AuthToken.ID, UnauthorizedRequest
+				return c.AuthToken, UnauthorizedRequest
 			}
-			return c.AuthToken.ID, nil
+			return c.AuthToken, nil
 		}
-		return c.AuthToken.ID, UnauthorizedRequest
+		return c.AuthToken, UnauthorizedRequest
 	}
 	a.pkgLog("Auth token is not expired. Process...\n")
 
@@ -271,11 +281,10 @@ func (a *Auth) Process(w http.ResponseWriter, r *http.Request) (string, error) {
 	// // And tokens have been refreshed if need-be
 	if !a.options.VerifyOnlyServer {
 		if err := a.setCredentials(w, &c); err != nil {
-			return c.AuthToken.ID, errors.Wrap(err, "Error setting credentials")
+			return c.AuthToken, errors.Wrap(err, "Error setting credentials")
 		}
 	}
-
-	return c.AuthToken.ID, nil
+	return c.AuthToken, nil
 }
 
 // IssueNewTokens : and also modify create refresh and auth token functions!

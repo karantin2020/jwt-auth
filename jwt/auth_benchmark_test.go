@@ -406,6 +406,16 @@ func TestAuthTokenWithHeader(t *testing.T) {
 			}
 			a.SetBearerTokens(tt.data.bearer)
 			ts := httptest.NewServer(a.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				auth_claims, err := AuthClaims(r)
+				if err != nil {
+					t.Fatalf("No auth token in request context found, Error: %v", err)
+				}
+				fmt.Printf("Auth claims ID %#v\n", auth_claims.ID)
+				tm, err := TokenTime(auth_claims.ID)
+				if err != nil {
+					t.Fatalf("Error getting token id time: %v", err)
+				}
+				fmt.Printf("Auth claims ID time %s\n", tm)
 				w.Write(msg)
 			})))
 			defer ts.Close()
