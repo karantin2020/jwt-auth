@@ -202,6 +202,7 @@ func JwtAuth(fopts ...func(o *Options) error) func(next http.Handler) http.Handl
 func (a *Auth) Handler(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// if next handler is nil then raise an error
+		a.pkgLog("Auth JWT middleware")
 		if h == nil {
 			a.errorHandler.ServeHTTP(w, r)
 			return
@@ -292,7 +293,7 @@ func (a *Auth) Process(w http.ResponseWriter, r *http.Request) (*ClaimsType, err
 		a.pkgLog("Invalid credentials, Err: %#v\n", err)
 		return nil, UnauthorizedRequest
 	}
-	a.pkgLog("%#v\n", c.AuthToken)
+	// a.pkgLog("%#v\n", c.AuthToken)
 
 	// // check the credential's validity; updating expiry's if necessary and/or allowed
 	if err := c.Validate(r); err != nil {

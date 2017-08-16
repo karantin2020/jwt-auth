@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	//"net/url"
 	//"strings"
+	"github.com/go-chi/chi"
+	// "github.com/go-chi/chi/middleware"
 	"github.com/urfave/negroni"
 	jwt "gopkg.in/square/go-jose.v2/jwt"
 	"testing"
@@ -487,7 +489,7 @@ func TestAuthTokenWithHeader(t *testing.T) {
 	}
 }
 
-func TestAuthMiddleware(t *testing.T) {
+func TestAuthMiddlewareNegroni(t *testing.T) {
 	type datas struct {
 		opts   []func(o *Options) error
 		cl     *ClaimsType
@@ -637,4 +639,175 @@ func TestAuthMiddleware(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAuthMiddlewareChi(t *testing.T) {
+	type datas struct {
+		opts   []func(o *Options) error
+		cl     *ClaimsType
+		bearer bool
+		wait   time.Duration
+	}
+	type args struct {
+		token string
+		w     http.ResponseWriter
+	}
+	signVerify, err := generateRandomBytes(32)
+	if err != nil {
+		t.Fatalf("Couldn't generate sign/verify key, Error: %v", err)
+	}
+	tests := []struct {
+		name    string
+		data    datas
+		wantErr bool
+	}{
+		{
+			"Empty/devel options",
+			datas{
+				[]func(o *Options) error{
+					func(o *Options) error {
+						o.IsDevEnv = true
+						o.BearerTokens = true
+						o.SignKey = signVerify
+						o.VerifyKey = signVerify
+						o.EncryptKey = signVerify
+						o.DecryptKey = signVerify
+						return nil
+					},
+				},
+				&ClaimsType{
+					Claims: jwt.Claims{
+						Subject: "127.0.0.1",
+					},
+				},
+				true,
+				0,
+			},
+			false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a, authErr := NewAuth(tt.data.opts...)
+			if authErr != nil {
+				t.Errorf("Failed to make new Auth; Err: %v", authErr)
+				return
+			}
+			// a.SetBearerTokens(tt.data.bearer)
+			r := chi.NewRouter()
+			r.Use(MidOne)
+			r.Use(MidTwo)
+			r.Use(JwtAuth(tt.data.opts...))
+			r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+				fmt.Println("Start handler")
+				auth_claims, err := AuthClaims(r)
+				if err != nil {
+					t.Fatalf("No auth token in request context found, Error: %v", err)
+				}
+				fmt.Printf("Auth claims ID %#v\n", auth_claims.ID)
+				tm, err := TokenTime(auth_claims.ID)
+				if err != nil {
+					t.Fatalf("Error getting token id time: %v", err)
+				}
+				fmt.Printf("Auth claims ID time %s\n", tm)
+				// fmt.Printf("Write message")
+				w.Write(msg)
+			})
+			ts := httptest.NewServer(r)
+			defer ts.Close()
+
+			as := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				a.IssueNewTokens(w, tt.data.cl)
+				fmt.Fprintln(w, "Hello, client")
+			}))
+			defer as.Close()
+			// get credentials
+			resp, err := http.Get(as.URL)
+			if err != nil {
+				t.Errorf("Couldn't send request to test server; Err: %v", err)
+			}
+
+			cl := &http.Client{}
+			req, err := http.NewRequest("GET", ts.URL, nil)
+			if err != nil {
+				t.Fatalf("Couldn't build request; Err: %v", err)
+			}
+
+			if !tt.data.bearer {
+				rc := resp.Cookies()
+				// fmt.Printf("resp Cookies: %#v\n", rc)
+				if len(rc) == 0 {
+					t.Errorf("Couldn't get response cookies")
+					return
+				}
+				var authCookieIndex int
+				var refreshCookieIndex int
+
+				for i, cookie := range rc {
+					if cookie.Name == "AuthToken" {
+						authCookieIndex = i
+					}
+					if cookie.Name == "RefreshToken" {
+						refreshCookieIndex = i
+					}
+				}
+
+				req.AddCookie(rc[authCookieIndex])
+				req.AddCookie(rc[refreshCookieIndex])
+				req.Header.Add("X-CSRF-Token", resp.Header.Get("X-CSRF-Token"))
+			} else {
+				if len(resp.Header) == 0 {
+					t.Errorf("Couldn't get response headers")
+					return
+				}
+				// fmt.Printf("resp Headers: %#v\n", resp.Header)
+
+				auth_hdv := resp.Header.Get(a.options.AuthTokenName)
+				if auth_hdv == "" {
+					t.Errorf("Couldn't get response auth headers")
+					return
+				}
+				refresh_hdv := resp.Header.Get(a.options.RefreshTokenName)
+				if refresh_hdv == "" {
+					t.Errorf("Couldn't get response refresh headers")
+					return
+				}
+
+				req.Header.Add(a.options.AuthTokenName, auth_hdv)
+				req.Header.Add(a.options.RefreshTokenName, refresh_hdv)
+				req.Header.Add("X-CSRF-Token", resp.Header.Get("X-CSRF-Token"))
+			}
+			// need to sleep to check expiry time differences
+			time.Sleep(tt.data.wait)
+			res, err := cl.Do(req)
+			if err != nil {
+				t.Fatal("Get:", err)
+			}
+			all, err := ioutil.ReadAll(res.Body)
+			if err != nil {
+				t.Fatal("ReadAll:", err)
+			}
+			if !bytes.Equal(all, msg) && !tt.wantErr {
+				t.Fatalf("Got body %q; want %q", all, msg)
+			}
+		})
+	}
+}
+
+func MidOne(h http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("MidOne")
+		h.ServeHTTP(w, r)
+	}
+
+	return http.HandlerFunc(fn)
+}
+func MidTwo(h http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("MidTwo")
+		h.ServeHTTP(w, r)
+	}
+
+	return http.HandlerFunc(fn)
 }
