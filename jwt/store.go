@@ -232,6 +232,7 @@ func (js jwtStore) Get(r *http.Request) (*ClaimsType, error) {
 }
 
 func (js jwtStore) ParseJWT(tokenString string) (*ClaimsType, error) {
+	// fmt.Printf("Token string in store get: %#v\n", tokenString)
 	cl := ClaimsType{}
 	if js.encrypt {
 		tok, err := jwt.ParseSignedAndEncrypted(tokenString)
@@ -240,20 +241,21 @@ func (js jwtStore) ParseJWT(tokenString string) (*ClaimsType, error) {
 		}
 		nested, err := tok.Decrypt(js.decryptKey)
 		if err != nil {
-			return nil, errors.Wrap(err, "Error decrypt encrypted JWT")
+			return nil, errors.Wrap(err, "Error decrypt encrypted JWT, invalid decrypt key")
 		}
 
 		if err := nested.Claims(js.verifyKey, &cl); err != nil {
-			return nil, errors.Wrap(err, "Error verify encrypted JWT")
+			return nil, errors.Wrap(err, "Error verify encrypted JWT, invalid verify key")
 		}
 	} else {
 		tok, err := jwt.ParseSigned(tokenString)
+		// fmt.Printf("Token parsed in store get: %#v\n", tok)
 		if err != nil {
 			return nil, errors.Wrap(err, "Error parse signed JWT")
 		}
 
 		if err := tok.Claims(js.verifyKey, &cl); err != nil {
-			return nil, errors.Wrap(err, "Error verify signed JWT")
+			return nil, errors.Wrap(err, "Error verify signed JWT, invalid verify key")
 		}
 		parsed, err := jose.ParseEncrypted(cl.Csrf)
 		if err != nil {
@@ -261,7 +263,7 @@ func (js jwtStore) ParseJWT(tokenString string) (*ClaimsType, error) {
 		}
 		output, err := parsed.Decrypt(js.decryptKey.([]byte))
 		if err != nil {
-			return nil, errors.Wrapf(err, "error on decrypt")
+			return nil, errors.Wrapf(err, "error on decrypt jwt claims csrf string, invalid decrypt key")
 		}
 		cl.Csrf = string(output)
 

@@ -213,7 +213,9 @@ func (a *Auth) Handler(h http.Handler) http.Handler {
 
 		// If there was an error, do not continue.
 		if err != nil {
-			a.NullifyTokens(auth_token.ID, w)
+			if auth_token != nil {
+				a.NullifyTokens(auth_token.ID, w)
+			}
 			if err == UnauthorizedRequest {
 				a.pkgLog("Unauthorized processing\n")
 				a.unauthorizedHandler.ServeHTTP(w, r)
@@ -239,15 +241,27 @@ func (a *Auth) HandlerFunc(fn http.HandlerFunc) http.Handler {
 	return a.Handler(fn)
 }
 
+func JwtAuthFunc(fopts ...func(o *Options) error) func(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
+	a, authErr := NewAuth(fopts...)
+	if authErr != nil {
+		panic("Failed to init new JwtAuth middleware; Err: " + authErr.Error())
+	}
+	return a.HandlerFuncWithNext
+}
+
 // HandlerFuncWithNext is a special implementation for Negroni, but could be used elsewhere.
 func (a *Auth) HandlerFuncWithNext(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
+	if next == nil {
+		a.errorHandler.ServeHTTP(w, r)
+		return
+	}
+
 	auth_token, err := a.Process(w, r)
 
-	// If there was an error, do not call next.
-	if err == nil && next != nil {
-		next(w, r)
-	} else {
-		_ = a.NullifyTokens(auth_token.ID, w)
+	if err != nil {
+		if auth_token != nil {
+			a.NullifyTokens(auth_token.ID, w)
+		}
 		if err == UnauthorizedRequest {
 			a.unauthorizedHandler.ServeHTTP(w, r)
 			return
@@ -255,6 +269,14 @@ func (a *Auth) HandlerFuncWithNext(w http.ResponseWriter, r *http.Request, next 
 		a.errorHandler.ServeHTTP(w, r)
 		return
 	}
+
+	if auth_token != nil {
+		r = contextSave(r, authTokenKey, auth_token)
+	}
+
+	// If there was an error, do not call next.
+	next(w, r)
+
 }
 
 // Process runs the actual checks and returns an error if the middleware chain should stop.
@@ -267,6 +289,7 @@ func (a *Auth) Process(w http.ResponseWriter, r *http.Request) (*ClaimsType, err
 	// grab the credentials from the request
 	var c credentials
 	if err := a.getCredentials(r, &c); err != nil {
+		a.pkgLog("Invalid credentials, Err: %#v\n", err)
 		return nil, UnauthorizedRequest
 	}
 	a.pkgLog("%#v\n", c.AuthToken)
@@ -277,6 +300,7 @@ func (a *Auth) Process(w http.ResponseWriter, r *http.Request) (*ClaimsType, err
 			a.pkgLog("Auth token is expired. Renew Auth token\n")
 			err = c.RenewAuthToken(r)
 			if err != nil {
+				a.pkgLog("Error renew auth token, Err: %#v\n", err)
 				return c.AuthToken, UnauthorizedRequest
 			}
 			return c.AuthToken, nil
