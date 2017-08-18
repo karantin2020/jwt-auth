@@ -10,4 +10,8 @@ pipeline:
       - apk add git
       - cd jwt
       - go get -v
+      - go get -v github.com/go-chi/chi
+      - go get -v github.com/pkg/errors
+      - go get -v github.com/urfave/negroni
+      - go get -v gopkg.in/square/go-jose.v2/jwt
       - go test -v
