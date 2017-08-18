@@ -6,4 +6,5 @@ pipeline:
   test:
     image: golang:1.8.3-alpine
     commands:
+      - go get -u -v
       - go test -v
