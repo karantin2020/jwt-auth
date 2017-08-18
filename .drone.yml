@@ -1,6 +1,6 @@
 workspace:
   base: /go
-  path: src/github.com/karantin2020/jwt-auth/jwt
+  path: src/github.com/karantin2020/jwt-auth
 
 pipeline:
   test:
@@ -8,5 +8,6 @@ pipeline:
     commands:
       - apk update
       - apk add git
+      - cd jwt
       - ls
       - go test -v
