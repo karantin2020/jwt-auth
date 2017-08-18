@@ -38,24 +38,10 @@ var regularHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Reques
 })
 
 func main() {
-  authErr := jwt.New(&restrictedRoute, jwt.Options{
-    SigningMethodString:   "RS256",
-    PrivateKeyLocation:    "keys/app.rsa",     // `$ openssl genrsa -out app.rsa 2048`
-    PublicKeyLocation:     "keys/app.rsa.pub", // `$ openssl rsa -in app.rsa -pubout > app.rsa.pub`
-    RefreshTokenValidTime: 72 * time.Hour,
-    AuthTokenValidTime:    15 * time.Minute,
-    Debug:                 false,
-    IsDevEnv:              true,
-  })
-  if authErr != nil {
-    log.Println("Error initializing the JWT's!")
-    log.Fatal(authErr)
-  }
-
   http.HandleFunc("/", regularHandler)
   // this will never be available because we never issue tokens
   // see login_logout example for how to provide tokens
-  http.Handle("/restricted", restrictedRoute.Handler(restrictedHandler))
+  http.Handle("/restricted", jwt.JwtAuth()(restrictedHandler))
 
   log.Println("Listening on localhost:3000")
   http.ListenAndServe("127.0.0.1:3000", nil)
@@ -63,17 +49,7 @@ func main() {
 ~~~
 
 ## Performance
-YMMV
 
-~~~ bash
-$ cd jwt && go test -bench=.
-
-BenchmarkBaseServer-2                        10000      137517 ns/op
-BenchmarkValidAuthTokenWithCookies-2          5000      303160 ns/op
-BenchmarkExpiredAuthTokenWithCookies-2        5000      323933 ns/op
-PASS
-ok    github.com/karantin2020/jwt-auth/jwt  15.463s
-~~~
 
 ## Goals
 It is important to understand the objective of this auth architecture. It certainly is not an applicable design for all use cases. Please read and understand the goals, below, and make changes to your own workflow to suit your specific needs.
@@ -118,56 +94,54 @@ If you are using cookies, the auth and refresh jwt's will automatically be inclu
 
 ### Create a new jwt middleware
 ~~~ go
-var restrictedRoute jwt.Auth
+var auth = jwt.JwtAuth()
 ~~~
 
 ### JWT middleware options
 ~~~ go
 type Options struct {
-  SigningMethodString   string // one of "HS256", "HS384", "HS512", "RS256", "RS384", "RS512", "ES256", "ES384", "ES512"
-  PrivateKeyLocation    string // only for RSA and ECDSA signing methods; only required if VerifyOnlyServer is false
-  PublicKeyLocation     string // only for RSA and ECDSA signing methods
-  HMACKey               []byte // only for HMAC-SHA signing method
-  VerifyOnlyServer      bool // false = server can verify and issue tokens (default); true = server can only verify tokens
-  BearerTokens          bool // false = server uses cookies to transport jwts (default); true = server uses request headers
+  SigningMethodString string
+  EncryptMethodString string
+  PrivateKeyLocation  string
+  PublicKeyLocation   string
+  SignKey             interface{}
+  VerifyKey           interface{}
+  EncryptKey          interface{}
+  DecryptKey          interface{}
+  // CsrfEncryptKey        []byte
+  VerifyOnlyServer      bool
+  BearerTokens          bool
+  AuthCookieForJS       bool // Set HttpOnly auth cookie property to false. Enable js parsing of jwt
   RefreshTokenValidTime time.Duration
   AuthTokenValidTime    time.Duration
-  AuthTokenName         string // defaults to "AuthToken" for cookies and "X-Auth-Token" for bearer tokens
-  RefreshTokenName      string // defaults to "RefreshToken" for cookies and "X-Refresh-Token" for bearer tokens
-  CSRFTokenName         string // defaults to "X-CSRF-Token"
-  Debug                 bool // true = more logs are shown
-  IsDevEnv              bool // true = in development mode; this sets http cookies (if used) to insecure; false = production mode; this sets http cookies (if used) to secure
+  AuthTokenName         string
+  RefreshTokenName      string
+  CSRFTokenName         string
+  RevokeRefreshToken    TokenRevoker
+  Path                  string
+  Domain                string
+  Debug                 bool
+  IsDevEnv              bool
 }
 ~~~
 
 ### ClaimsType
 ~~~ go
+// ClaimsType : holds the claims encoded in the jwt
 type ClaimsType struct {
-  // Standard claims are the standard jwt claims from the ietf standard
+  // Claims are the standard jwt claims from the ietf standard
   // https://tools.ietf.org/html/rfc7519
-  jwt.StandardClaims
-  Csrf               string
-  CustomClaims       map[string]interface{}
+  jwt.Claims `json:"claims"`
+  Csrf       string      `json:"csrf"`
+  Custom     interface{} `json:"custom"`
 }
 ~~~
 
-Note that there is a "CustomClaims" map that allows you to set whatever you want. See "IssueTokenClaims" and "GrabTokenClaims", below, for more.
+Note that there is a "CustomClaims" interface{} that allows you to set whatever you want. See "IssueTokenClaims" and "GrabTokenClaims", below, for more.
 
 ### Initialize new JWT middleware
 ~~~ go
-authErr := jwt.New(&restrictedRoute, jwt.Options{
-  SigningMethodString:   "RS256",
-  PrivateKeyLocation:    "keys/app.rsa",     // `$ openssl genrsa -out app.rsa 2048`
-  PublicKeyLocation:     "keys/app.rsa.pub", // `$ openssl rsa -in app.rsa -pubout > app.rsa.pub`
-  RefreshTokenValidTime: 72 * time.Hour,
-  AuthTokenValidTime:    15 * time.Minute,
-  Debug:                 false,
-  IsDevEnv:              true,
-})
-if authErr != nil {
-  log.Println("Error initializing the JWT's!")
-  log.Fatal(authErr)
-}
+jwtAuth := jwt.JwtAuth() // For developement or init option for production
 ~~~
 
 ### Handle a restricted route (see below for integration with popular frameworks)
@@ -175,7 +149,10 @@ if authErr != nil {
 // outside of main()
 var restrictedHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
   csrfSecret := w.Header().Get("X-CSRF-Token")
-  claims, err := restrictedRoute.GrabTokenClaims(r)
+  auth_claims, err := jwt.AuthClaims(r)
+  if err != nil {
+    fmt.Printf("No auth token in request context found, Error: %v\n", err)
+  }
   log.Println(claims)
   
   if err != nil {
@@ -187,7 +164,7 @@ var restrictedHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Req
 
 func main() {
   ...
-  http.Handle("/restricted", restrictedRoute.Handler(restrictedHandler))
+  http.Handle("/restricted", jwtAuth(restrictedHandler))
 
   log.Println("Listening on localhost:3000")
   http.ListenAndServe("127.0.0.1:3000", nil)
@@ -196,11 +173,17 @@ func main() {
 
 ### Issue new tokens and CSRF secret (for instance, when a user provides valid login credentials)
 ~~~ go
+restrictedRoute, authErr := NewAuth(opts...)
+if authErr != nil {
+  fmt.Printf("Failed to make new Auth; Err: %v\n", authErr)
+  return
+}
 // in a handler func
-claims := jwt.ClaimsType{}
-claims.StandardClaims.Id = "fakeTokenId123"
-claims.CustomClaims = make(map[string]interface{})
-claims.CustomClaims["Role"] = "user"
+claims := &ClaimsType{
+  Claims: jwt.Claims{
+    Subject: "127.0.0.1",
+  },
+}
 
 err := restrictedRoute.IssueNewTokens(w, &claims)
 if err != nil {
@@ -219,26 +202,13 @@ Note: a token Id must be provided if you'd later like the ability to revoke this
 csrfSecret := w.Header().Get("X-CSRF-Token")
 ~~~
 
-### Get the expiration time of the refresh token, in Unix time
-~~~ go
-// in a handler func
-// note: this works because if the middleware has made it this far, the JWT middleware has written this to the response writer (w)
-// note: also, this won't be exact and may be a few milliseconds off from the token's actual expiry
-refreshExpirationTime := w.Header().Get("Refresh-Expiry")
-~~~
-
-### Get the expiration time of the auth token, in Unix time
-~~~ go
-// in a handler func
-// note: this works because if the middleware has made it this far, the JWT middleware has written this to the response writer (w)
-// note: also, this won't be exact and may be a few milliseconds off from the token's actual expiry
-authExpirationTime := w.Header().Get("Auth-Expiry")
-~~~
-
 ### Get claims from a request
 ~~~ go
 // in a handler func
-claims, err := restrictedRoute.GrabTokenClaims(r)
+auth_claims, err := AuthClaims(r)
+if err != nil {
+  fmt.Printf("No auth token in request context found, Error: %v\n", err)
+}
 log.Println(claims)
 ~~~
 
