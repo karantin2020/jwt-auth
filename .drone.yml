@@ -9,5 +9,5 @@ pipeline:
       - apk update
       - apk add git
       - cd jwt
-      - ls
+      - go get -v
       - go test -v
