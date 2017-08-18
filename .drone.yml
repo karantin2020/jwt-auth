@@ -5,6 +5,5 @@ workspace:
 pipeline:
   test:
     image: golang:1.8.3-alpine
-    repo: node3030/webhook
     commands:
       - go test -v
