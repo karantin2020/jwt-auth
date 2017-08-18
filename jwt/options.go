@@ -77,7 +77,7 @@ func DefOpts(o *Options) error {
 		o.SignKey = signKey
 		o.VerifyKey = verifyKey
 	}
-	if o.EncryptKey == nil || o.DecryptKey == nil {
+	if (o.DecryptKey == nil && !o.VerifyOnlyServer) || o.EncryptKey == nil {
 		return errors.New("EncryptKey and DecryptKey must be defined")
 	}
 	// if o.CsrfEncryptKey == nil {
@@ -93,23 +93,19 @@ func DevelOpts(o *Options) error {
 	DefOpts(o)
 	o.AuthTokenName = defaultBearerAuthTokenName
 	o.RefreshTokenName = defaultBearerRefreshTokenName
-	if o.SignKey == nil || o.VerifyKey == nil {
-		sv, err := generateRandomBytes(32)
-		if err != nil {
-			return errors.Wrap(err, "Error generating sign/verify key")
-		}
-		o.SignKey = sv
-		o.VerifyKey = sv
+	sd, err := generateRandomBytes(32)
+	if err != nil {
+		return errors.Wrap(err, "Error generating encrypt/decrypt key")
 	}
-	if o.EncryptKey == nil || o.DecryptKey == nil {
-		ed, err := generateRandomBytes(32)
-		if err != nil {
-			return errors.Wrap(err, "Error generating encrypt/decrypt key")
-		}
-		o.EncryptKey = ed
-		o.DecryptKey = ed
+	if (o.SignKey == nil && !o.VerifyOnlyServer) || o.VerifyKey == nil {
+		o.SignKey = sd
+		o.VerifyKey = sd
 	}
-	o.VerifyOnlyServer = false
+	if (o.DecryptKey == nil && !o.VerifyOnlyServer) || o.EncryptKey == nil {
+		o.EncryptKey = sd
+		o.DecryptKey = sd
+	}
+	// o.VerifyOnlyServer = false // False by default
 	o.Path = "/"
 	o.Domain = "localhost"
 	o.BearerTokens = true
