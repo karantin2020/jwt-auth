@@ -227,7 +227,11 @@ http.Redirect(w, r, "/login", 302)
 ### Token Id checker
 A function used to check if a refresh token id has been revoked. You can either use a blacklist of revoked tokens, or a whitelist of allowed tokens. Your call. This function simply needs to return true if the token id has not been revoked. This function is run everytime an auth token is refreshed.
 ~~~go
-var restrictedRoute jwt.Auth
+restrictedRoute, authErr := NewAuth(opts...)
+if authErr != nil {
+  fmt.Printf("Failed to make new Auth; Err: %v\n", authErr)
+  return
+}
 
 // create a database of refresh tokens
 // map key is the jti (json token identifier)
@@ -245,7 +249,11 @@ func CheckRefreshToken(jti string) bool {
 ### Token Id revoker
 A function that adds a token id to a blacklist of revoked tokens, or revokes it from a whitelist of allowed tokens (however you'd like to do it).
 ~~~go
-var restrictedRoute jwt.Auth
+restrictedRoute, authErr := NewAuth(opts...)
+if authErr != nil {
+  fmt.Printf("Failed to make new Auth; Err: %v\n", authErr)
+  return
+}
 
 // create a database of refresh tokens
 // map key is the jti (json token identifier)
@@ -264,7 +272,11 @@ func DeleteRefreshToken(jti string) error {
 ### 500 error handling
 Set the response to a 500 error.
 ~~~go
-var restrictedRoute jwt.Auth
+restrictedRoute, authErr := NewAuth(opts...)
+if authErr != nil {
+  fmt.Printf("Failed to make new Auth; Err: %v\n", authErr)
+  return
+}
 
 restrictedRoute.SetErrorHandler(myErrorHandler)
 
@@ -277,7 +289,11 @@ var myErrorHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Reques
 ### 401 unauthorized handling
 Set the response to a 401 unauthorized request
 ~~~go
-var restrictedRoute jwt.Auth
+restrictedRoute, authErr := NewAuth(opts...)
+if authErr != nil {
+  fmt.Printf("Failed to make new Auth; Err: %v\n", authErr)
+  return
+}
 
 restrictedRoute.SetUnauthorizedHandler(MyUnauthorizedHandler)
 
