@@ -259,7 +259,7 @@ func (js jwtStore) ParseJWT(tokenString string) (*ClaimsType, error) {
 		}
 		parsed, err := jose.ParseEncrypted(cl.Csrf)
 		if err != nil {
-			return nil, errors.Wrapf(err, "error in parse on msg '%s'", msg)
+			return nil, errors.Wrapf(err, "error in parse csrf")
 		}
 		output, err := parsed.Decrypt(js.decryptKey.([]byte))
 		if err != nil {
