@@ -8,5 +8,5 @@ pipeline:
     commands:
       - apk update
       - apk add git
-      - go get -u -v
+      - go get -u -v github.com/karantin2020/jwt-auth/jwt
       - go test -v
