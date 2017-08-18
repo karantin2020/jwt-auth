@@ -15,6 +15,7 @@ Next Readme is not all adopted to actual version
 7. [Test Coverage](https://github.com/karantin2020/jwt-auth#test-coverage)
 8. [License](https://github.com/karantin2020/jwt-auth#license)
 
+
 ## Quickstart
 ~~~ go
 package main
