@@ -8,4 +8,5 @@ pipeline:
     commands:
       - apk update
       - apk add git
+      - ls
       - go test -v
