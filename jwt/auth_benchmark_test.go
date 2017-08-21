@@ -418,73 +418,9 @@ func TestAuthTokenWithHeader(t *testing.T) {
 				fmt.Fprintln(w, "Hello, client")
 			}))
 			defer as.Close()
-			// get credentials
-			resp, err := http.Get(as.URL)
-			if err != nil {
-				t.Errorf("Couldn't send request to test server; Err: %v", err)
-			}
 
-			cl := &http.Client{}
-			req, err := http.NewRequest("GET", ts.URL, nil)
-			if err != nil {
-				t.Fatalf("Couldn't build request; Err: %v", err)
-			}
-
-			if !tt.data.bearer {
-				rc := resp.Cookies()
-				if len(rc) == 0 {
-					t.Errorf("Couldn't get response cookies")
-					return
-				}
-				var authCookieIndex int
-				var refreshCookieIndex int
-
-				for i, cookie := range rc {
-					if cookie.Name == "AuthToken" {
-						authCookieIndex = i
-					}
-					if cookie.Name == "RefreshToken" {
-						refreshCookieIndex = i
-					}
-				}
-
-				req.AddCookie(rc[authCookieIndex])
-				req.AddCookie(rc[refreshCookieIndex])
-				req.Header.Add("X-CSRF-Token", resp.Header.Get("X-CSRF-Token"))
-			} else {
-				if len(resp.Header) == 0 {
-					t.Errorf("Couldn't get response headers")
-					return
-				}
-
-				auth_hdv := resp.Header.Get(a.options.AuthTokenName)
-				if auth_hdv == "" {
-					t.Errorf("Couldn't get response auth headers")
-					return
-				}
-				refresh_hdv := resp.Header.Get(a.options.RefreshTokenName)
-				if refresh_hdv == "" {
-					t.Errorf("Couldn't get response refresh headers")
-					return
-				}
-
-				req.Header.Add(a.options.AuthTokenName, auth_hdv)
-				req.Header.Add(a.options.RefreshTokenName, refresh_hdv)
-				req.Header.Add("X-CSRF-Token", resp.Header.Get("X-CSRF-Token"))
-			}
-			// need to sleep to check expiry time differences
-			time.Sleep(tt.data.wait)
-			res, err := cl.Do(req)
-			if err != nil {
-				t.Fatal("Get:", err)
-			}
-			all, err := ioutil.ReadAll(res.Body)
-			if err != nil {
-				t.Fatal("ReadAll:", err)
-			}
-			if !bytes.Equal(all, msg) && !tt.wantErr {
-				t.Fatalf("Got body %q; want %q", all, msg)
-			}
+			testServer(as.URL, ts.URL, a.options.AuthTokenName, a.options.RefreshTokenName,
+				tt.data.bearer, tt.data.wait, tt.wantErr, t)
 		})
 	}
 }
@@ -568,75 +504,9 @@ func TestAuthMiddlewareNegroni(t *testing.T) {
 				fmt.Fprintln(w, "Hello, client")
 			}))
 			defer as.Close()
-			// get credentials
-			resp, err := http.Get(as.URL)
-			if err != nil {
-				t.Errorf("Couldn't send request to test server; Err: %v", err)
-			}
 
-			cl := &http.Client{}
-			req, err := http.NewRequest("GET", ts.URL, nil)
-			if err != nil {
-				t.Fatalf("Couldn't build request; Err: %v", err)
-			}
-
-			if !tt.data.bearer {
-				rc := resp.Cookies()
-				// fmt.Printf("resp Cookies: %#v\n", rc)
-				if len(rc) == 0 {
-					t.Errorf("Couldn't get response cookies")
-					return
-				}
-				var authCookieIndex int
-				var refreshCookieIndex int
-
-				for i, cookie := range rc {
-					if cookie.Name == "AuthToken" {
-						authCookieIndex = i
-					}
-					if cookie.Name == "RefreshToken" {
-						refreshCookieIndex = i
-					}
-				}
-
-				req.AddCookie(rc[authCookieIndex])
-				req.AddCookie(rc[refreshCookieIndex])
-				req.Header.Add("X-CSRF-Token", resp.Header.Get("X-CSRF-Token"))
-			} else {
-				if len(resp.Header) == 0 {
-					t.Errorf("Couldn't get response headers")
-					return
-				}
-				// fmt.Printf("resp Headers: %#v\n", resp.Header)
-
-				auth_hdv := resp.Header.Get(a.options.AuthTokenName)
-				if auth_hdv == "" {
-					t.Errorf("Couldn't get response auth headers")
-					return
-				}
-				refresh_hdv := resp.Header.Get(a.options.RefreshTokenName)
-				if refresh_hdv == "" {
-					t.Errorf("Couldn't get response refresh headers")
-					return
-				}
-
-				req.Header.Add(a.options.AuthTokenName, auth_hdv)
-				req.Header.Add(a.options.RefreshTokenName, refresh_hdv)
-				req.Header.Add("X-CSRF-Token", resp.Header.Get("X-CSRF-Token"))
-			}
-			// need to sleep to check expiry time differences
-			time.Sleep(tt.data.wait)
-			res, err := cl.Do(req)
-			if err != nil {
-				t.Fatal("Get:", err)
-			}
-			all, err := ioutil.ReadAll(res.Body)
-			if err != nil {
-				t.Fatal("ReadAll:", err)
-			}
-			if !bytes.Equal(all, msg) && !tt.wantErr {
-				t.Fatalf("Got body %q; want %q", all, msg)
-			}
+			testServer(as.URL, ts.URL, a.options.AuthTokenName, a.options.RefreshTokenName,
+				tt.data.bearer, tt.data.wait, tt.wantErr, t)
 		})
 	}
 }
@@ -647,10 +517,6 @@ func TestAuthMiddlewareChi(t *testing.T) {
 		cl     *ClaimsType
 		bearer bool
 		wait   time.Duration
-	}
-	type args struct {
-		token string
-		w     http.ResponseWriter
 	}
 	signVerify, err := generateRandomBytes(32)
 	if err != nil {
@@ -716,82 +582,86 @@ func TestAuthMiddlewareChi(t *testing.T) {
 			})
 			ts := httptest.NewServer(r)
 			defer ts.Close()
-
 			as := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				a.IssueNewTokens(w, tt.data.cl)
 				fmt.Fprintln(w, "Hello, client")
 			}))
 			defer as.Close()
-			// get credentials
-			resp, err := http.Get(as.URL)
-			if err != nil {
-				t.Errorf("Couldn't send request to test server; Err: %v", err)
-			}
-
-			cl := &http.Client{}
-			req, err := http.NewRequest("GET", ts.URL, nil)
-			if err != nil {
-				t.Fatalf("Couldn't build request; Err: %v", err)
-			}
-
-			if !tt.data.bearer {
-				rc := resp.Cookies()
-				// fmt.Printf("resp Cookies: %#v\n", rc)
-				if len(rc) == 0 {
-					t.Errorf("Couldn't get response cookies")
-					return
-				}
-				var authCookieIndex int
-				var refreshCookieIndex int
-
-				for i, cookie := range rc {
-					if cookie.Name == "AuthToken" {
-						authCookieIndex = i
-					}
-					if cookie.Name == "RefreshToken" {
-						refreshCookieIndex = i
-					}
-				}
-
-				req.AddCookie(rc[authCookieIndex])
-				req.AddCookie(rc[refreshCookieIndex])
-				req.Header.Add("X-CSRF-Token", resp.Header.Get("X-CSRF-Token"))
-			} else {
-				if len(resp.Header) == 0 {
-					t.Errorf("Couldn't get response headers")
-					return
-				}
-				// fmt.Printf("resp Headers: %#v\n", resp.Header)
-
-				auth_hdv := resp.Header.Get(a.options.AuthTokenName)
-				if auth_hdv == "" {
-					t.Errorf("Couldn't get response auth headers")
-					return
-				}
-				refresh_hdv := resp.Header.Get(a.options.RefreshTokenName)
-				if refresh_hdv == "" {
-					t.Errorf("Couldn't get response refresh headers")
-					return
-				}
-
-				req.Header.Add(a.options.AuthTokenName, auth_hdv)
-				req.Header.Add(a.options.RefreshTokenName, refresh_hdv)
-				req.Header.Add("X-CSRF-Token", resp.Header.Get("X-CSRF-Token"))
-			}
-			// need to sleep to check expiry time differences
-			time.Sleep(tt.data.wait)
-			res, err := cl.Do(req)
-			if err != nil {
-				t.Fatal("Get:", err)
-			}
-			all, err := ioutil.ReadAll(res.Body)
-			if err != nil {
-				t.Fatal("ReadAll:", err)
-			}
-			if !bytes.Equal(all, msg) && !tt.wantErr {
-				t.Fatalf("Got body %q; want %q", all, msg)
-			}
+			testServer(as.URL, ts.URL, a.options.AuthTokenName, a.options.RefreshTokenName,
+				tt.data.bearer, tt.data.wait, tt.wantErr, t)
 		})
+	}
+}
+
+func testServer(authUrl, tokenUrl, AuthTokenName, RefreshTokenName string,
+	bearer bool, wait time.Duration, wantErr bool, t *testing.T) {
+	// get credentials
+	resp, err := http.Get(authUrl)
+	if err != nil {
+		t.Errorf("Couldn't send request to test server; Err: %v", err)
+	}
+
+	cl := &http.Client{}
+	req, err := http.NewRequest("GET", tokenUrl, nil)
+	if err != nil {
+		t.Fatalf("Couldn't build request; Err: %v", err)
+	}
+	if !bearer {
+		rc := resp.Cookies()
+		// fmt.Printf("resp Cookies: %#v\n", rc)
+		if len(rc) == 0 {
+			t.Errorf("Couldn't get response cookies")
+			return
+		}
+		var authCookieIndex int
+		var refreshCookieIndex int
+
+		for i, cookie := range rc {
+			if cookie.Name == "AuthToken" {
+				authCookieIndex = i
+			}
+			if cookie.Name == "RefreshToken" {
+				refreshCookieIndex = i
+			}
+		}
+
+		req.AddCookie(rc[authCookieIndex])
+		req.AddCookie(rc[refreshCookieIndex])
+		req.Header.Add("X-CSRF-Token", resp.Header.Get("X-CSRF-Token"))
+	} else {
+		if len(resp.Header) == 0 {
+			t.Errorf("Couldn't get response headers")
+			return
+		}
+		// fmt.Printf("resp Headers: %#v\n", resp.Header)
+
+		auth_hdv := resp.Header.Get(AuthTokenName)
+		if auth_hdv == "" {
+			t.Errorf("Couldn't get response auth headers")
+			return
+		}
+		refresh_hdv := resp.Header.Get(RefreshTokenName)
+		if refresh_hdv == "" {
+			t.Errorf("Couldn't get response refresh headers")
+			return
+		}
+
+		req.Header.Add(AuthTokenName, auth_hdv)
+		req.Header.Add(RefreshTokenName, refresh_hdv)
+		req.Header.Add("X-CSRF-Token", resp.Header.Get("X-CSRF-Token"))
+	}
+	// need to sleep to check expiry time differences
+	time.Sleep(wait)
+	res, err := cl.Do(req)
+	if err != nil {
+		t.Fatal("Get:", err)
+	}
+	all, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal("ReadAll:", err)
+	}
+	if !bytes.Equal(all, msg) && !wantErr {
+		t.Fatalf("Got body %q; want %q", all, msg)
 	}
 }
 
