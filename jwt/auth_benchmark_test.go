@@ -543,7 +543,7 @@ func TestAuthMiddlewareChi(t *testing.T) {
 				},
 				&ClaimsType{
 					Claims: jwt.Claims{
-						Subject: "127.0.1.1",
+						Subject: "127.0.0.1",
 					},
 				},
 				true,
