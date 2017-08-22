@@ -24,12 +24,12 @@ func GetCredentials(authUrl string, bearer bool,
 	}
 	req, err := http.NewRequest("GET", authUrl, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "Error in AuthorizeJWT: couldn't build request")
+		return nil, errors.Wrap(err, "Error in GetCredentials: couldn't build request")
 	}
 
 	resp, err := cl.Do(req)
 	if err != nil {
-		return nil, errors.Wrap(err, "Error in AuthorizeJWT: couldn't send request to auth server")
+		return nil, errors.Wrap(err, "Error in GetCredentials: couldn't send request to auth server")
 	}
 
 	tok.Bearer = bearer
