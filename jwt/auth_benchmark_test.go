@@ -14,6 +14,8 @@ import (
 	jwt "gopkg.in/square/go-jose.v2/jwt"
 	"testing"
 	"time"
+
+	"github.com/karantin2020/jwt-auth/client"
 )
 
 var msg = []byte("Hello world.\n")
@@ -593,12 +595,16 @@ func TestAuthMiddlewareChi(t *testing.T) {
 	}
 }
 
-func testServer(authUrl, tokenUrl, AuthTokenName, RefreshTokenName string,
+func testServer(authUrl, tokenUrl, authTokenName, refreshTokenName string,
 	bearer bool, wait time.Duration, wantErr bool, t *testing.T) {
 	// get credentials
-	resp, err := http.Get(authUrl)
+	authCred, err := client.GetCredentials(authUrl, bearer, authTokenName, refreshTokenName, "X-CSRF-Token", time.Second*3)
 	if err != nil {
-		t.Errorf("Couldn't send request to test server; Err: %v", err)
+		t.Errorf("Couldn't get credentials from test server; Err: %v", err)
+		return
+	}
+	if authCred.Bearer != bearer {
+		t.Fatal("Bearers are not equal")
 	}
 
 	cl := &http.Client{}
@@ -606,50 +612,15 @@ func testServer(authUrl, tokenUrl, AuthTokenName, RefreshTokenName string,
 	if err != nil {
 		t.Fatalf("Couldn't build request; Err: %v", err)
 	}
+
 	if !bearer {
-		rc := resp.Cookies()
-		// fmt.Printf("resp Cookies: %#v\n", rc)
-		if len(rc) == 0 {
-			t.Errorf("Couldn't get response cookies")
-			return
-		}
-		var authCookieIndex int
-		var refreshCookieIndex int
-
-		for i, cookie := range rc {
-			if cookie.Name == "AuthToken" {
-				authCookieIndex = i
-			}
-			if cookie.Name == "RefreshToken" {
-				refreshCookieIndex = i
-			}
-		}
-
-		req.AddCookie(rc[authCookieIndex])
-		req.AddCookie(rc[refreshCookieIndex])
-		req.Header.Add("X-CSRF-Token", resp.Header.Get("X-CSRF-Token"))
+		req.AddCookie(authCred.AuthTokenCookie)
+		req.AddCookie(authCred.RefreshTokenCookie)
 	} else {
-		if len(resp.Header) == 0 {
-			t.Errorf("Couldn't get response headers")
-			return
-		}
-		// fmt.Printf("resp Headers: %#v\n", resp.Header)
-
-		auth_hdv := resp.Header.Get(AuthTokenName)
-		if auth_hdv == "" {
-			t.Errorf("Couldn't get response auth headers")
-			return
-		}
-		refresh_hdv := resp.Header.Get(RefreshTokenName)
-		if refresh_hdv == "" {
-			t.Errorf("Couldn't get response refresh headers")
-			return
-		}
-
-		req.Header.Add(AuthTokenName, auth_hdv)
-		req.Header.Add(RefreshTokenName, refresh_hdv)
-		req.Header.Add("X-CSRF-Token", resp.Header.Get("X-CSRF-Token"))
+		req.Header.Add(authTokenName, authCred.AuthTokenHeader)
+		req.Header.Add(refreshTokenName, authCred.RefreshTokenHeader)
 	}
+	req.Header.Add("X-CSRF-Token", authCred.CSRFToken)
 	// need to sleep to check expiry time differences
 	time.Sleep(wait)
 	res, err := cl.Do(req)
