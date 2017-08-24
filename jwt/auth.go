@@ -46,6 +46,13 @@ const (
 	RefreshToken = 1
 )
 
+type AuthTokens struct {
+	Bearer       bool
+	AuthToken    string
+	RefreshToken string
+	CSRFToken    string
+}
+
 var (
 	UnauthorizedRequest = errors.New("Unauthorized Request")
 )
