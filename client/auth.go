@@ -40,14 +40,6 @@ func GetCredentials(authUrl string, bearer bool,
 	}
 
 	return GrabAuthTokens(resp, authName, refreshName, csrfName)
-
-	// all, err := ioutil.ReadAll(res.Body)
-	// if err != nil {
-	// 	t.Fatal("ReadAll:", err)
-	// }
-	// if !bytes.Equal(all, msg) && !wantErr {
-	// 	t.Fatalf("Got body %q; want %q", all, msg)
-	// }
 }
 
 func GrabAuthTokens(resp *http.Response, authName, refreshName, csrfName string) (*AuthTokens, error) {
