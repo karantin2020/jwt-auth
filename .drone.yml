@@ -3,8 +3,21 @@ workspace:
   path: src/github.com/karantin2020/jwt-auth
 
 pipeline:
-  test:
+  test1.8:
     image: golang:1.8.3-alpine
+    commands:
+      - apk update
+      - apk add git
+      - cd jwt
+      - go get -v
+      - go get -v github.com/go-chi/chi
+      - go get -v github.com/pkg/errors
+      - go get -v github.com/urfave/negroni
+      - go get -v gopkg.in/square/go-jose.v2/jwt
+      - go test -v
+      
+  test1.9:
+    image: golang:1.9.0-alpine3.6
     commands:
       - apk update
       - apk add git
