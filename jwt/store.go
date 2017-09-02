@@ -105,12 +105,11 @@ type claimStore interface {
 
 // jwtStore is used to store JWT tokens in request/response header.
 type jwtStore struct {
-	bearerTokens bool
-	tokenName    string
-	encrypt      bool
-	signer       jose.Signer
-	encrypter    jose.Encrypter
-	// csrfEncrypter       jose.Encrypter
+	bearerTokens        bool
+	tokenName           string
+	encrypt             bool
+	signer              jose.Signer
+	encrypter           jose.Encrypter
 	signingMethodString string
 	encryptMethodString string
 	signKey             interface{}
@@ -164,19 +163,6 @@ func initJWTStore(js *jwtStore) error {
 		return errors.Wrapf(InternalServerError, "jwtStore was not properly initiated: %#v %#v %#v",
 			js.signingMethodString, js.signKey, js.encryptMethodString)
 	}
-
-	// csrfEnc, err := jose.NewEncrypter(
-	// 	jose.ContentEncryption(js.encryptMethodString),
-	// 	jose.Recipient{
-	// 		Algorithm: jose.DIRECT,
-	// 		Key:       js.encryptKey,
-	// 	},
-	// 	&jose.EncrypterOptions{},
-	// )
-	// if err != nil {
-	// 	return errors.Wrap(err, "Couldn't create new encrypter")
-	// }
-	// js.csrfEncrypter = csrfEnc
 
 	if !js.encrypt {
 		sig, err := jose.NewSigner(jose.SigningKey{
@@ -257,15 +243,6 @@ func (js jwtStore) ParseJWT(tokenString string) (*ClaimsType, error) {
 		if err := tok.Claims(js.verifyKey, &cl); err != nil {
 			return nil, errors.Wrap(err, "Error verify signed JWT, invalid verify key")
 		}
-		// parsed, err := jose.ParseEncrypted(cl.Csrf)
-		// if err != nil {
-		// 	return nil, errors.Wrapf(err, "error in parse csrf")
-		// }
-		// output, err := parsed.Decrypt(js.decryptKey.([]byte))
-		// if err != nil {
-		// 	return nil, errors.Wrapf(err, "error on decrypt jwt claims csrf string, invalid decrypt key")
-		// }
-		// cl.Csrf = string(output)
 
 	}
 	return &cl, nil
@@ -280,17 +257,6 @@ func (js jwtStore) Encrypt(c *ClaimsType) (string, error) {
 
 // Save stores the JWT token in response
 func (js jwtStore) Save(c *ClaimsType, w http.ResponseWriter) error {
-	// if !js.encrypt {
-	// 	csrfEncoded, err := js.csrfEncrypter.Encrypt([]byte(c.Csrf))
-	// 	if err != nil {
-	// 		return errors.Wrap(err, "Error encrypt claims csrf")
-	// 	}
-	// 	ce, err := csrfEncoded.CompactSerialize()
-	// 	if err != nil {
-	// 		return errors.Wrap(err, "Error encrypt compact serialize claims csrf")
-	// 	}
-	// 	c.Csrf = ce
-	// }
 	token, err := js.Encrypt(c)
 	if err != nil {
 		return errors.Wrap(err, "Error encrypt claims")
@@ -323,12 +289,13 @@ func (js jwtStore) Revoke(w http.ResponseWriter) error {
 	return nil
 }
 
-// mixStore is used to store CSRF tokens in request/response header.
+// mixStore is used to store tokens in request/response header.
 type mixStore struct {
-	name string
+	name       string
+	headerName string
 }
 
-// Get retrieves a CSRF token from request header
+// Get retrieves a token from request header
 func (ms mixStore) Get(r *http.Request) (string, error) {
 	// Retrieve token from the request
 	tokenString := r.Header.Get(ms.name)
@@ -341,7 +308,7 @@ func (ms mixStore) Get(r *http.Request) (string, error) {
 		return unmaskString(tokenString), nil
 	}
 
-	auth := r.Header.Get("Authorization")
+	auth := r.Header.Get(ms.headerName)
 	if auth == "" {
 		return auth, errors.New("No mixStore string found in request")
 	}
@@ -350,12 +317,12 @@ func (ms mixStore) Get(r *http.Request) (string, error) {
 	if tokenString == "" {
 		return tokenString, errors.New("No mixStore string found in request")
 	}
-	byteCsrfString := unmask(tokenString)
-	if byteCsrfString == nil {
+	byteTokenString := unmask(tokenString)
+	if byteTokenString == nil {
 		return "", errors.New("Invalid mixStore string in request")
 	}
 
-	return string(byteCsrfString), nil
+	return string(byteTokenString), nil
 }
 
 // Save stores the CSRF token in response header

@@ -14,8 +14,7 @@ type ClaimsType struct {
 	// Claims are the standard jwt claims from the ietf standard
 	// https://tools.ietf.org/html/rfc7519
 	jwt.Claims `json:"claims"`
-	// Csrf       string      `json:"csrf"`
-	Custom interface{} `json:"custom"`
+	Custom     interface{} `json:"custom"`
 }
 
 // // Public claim values (as specified in RFC 7519).

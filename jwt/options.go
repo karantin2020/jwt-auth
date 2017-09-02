@@ -10,15 +10,14 @@ import (
 
 // Options is a struct for specifying configuration options
 type Options struct {
-	SigningMethodString string
-	EncryptMethodString string
-	PrivateKeyLocation  string
-	PublicKeyLocation   string
-	SignKey             interface{}
-	VerifyKey           interface{}
-	EncryptKey          interface{}
-	DecryptKey          interface{}
-	// CsrfEncryptKey        []byte
+	SigningMethodString   string
+	EncryptMethodString   string
+	PrivateKeyLocation    string
+	PublicKeyLocation     string
+	SignKey               interface{}
+	VerifyKey             interface{}
+	EncryptKey            interface{}
+	DecryptKey            interface{}
 	VerifyOnlyServer      bool
 	BearerTokens          bool
 	AuthCookieForJS       bool // Set HttpOnly auth cookie property to false. Enable js parsing of jwt
@@ -26,12 +25,11 @@ type Options struct {
 	AuthTokenValidTime    time.Duration
 	AuthTokenName         string
 	RefreshTokenName      string
-	// CSRFTokenName         string
-	RevokeRefreshToken TokenRevoker
-	Path               string
-	Domain             string
-	Debug              bool
-	IsDevEnv           bool
+	RevokeRefreshToken    TokenRevoker
+	Path                  string
+	Domain                string
+	Debug                 bool
+	IsDevEnv              bool
 }
 
 var DefaultOptions = Options{
@@ -41,9 +39,8 @@ var DefaultOptions = Options{
 	AuthTokenValidTime:    defaultAuthTokenValidTime,
 	AuthTokenName:         defaultCookieAuthTokenName,
 	RefreshTokenName:      defaultCookieRefreshTokenName,
-	// CSRFTokenName:         defaultCSRFTokenName,
-	Debug:    true,
-	IsDevEnv: true,
+	Debug:                 true,
+	IsDevEnv:              true,
 }
 
 func DefOpts(o *Options) error {
@@ -65,9 +62,6 @@ func DefOpts(o *Options) error {
 	if o.RefreshTokenName == "" {
 		o.RefreshTokenName = defaultCookieRefreshTokenName
 	}
-	// if o.CSRFTokenName == "" {
-	// 	o.CSRFTokenName = defaultCSRFTokenName
-	// }
 	if (o.SignKey == nil && !o.VerifyOnlyServer) || o.VerifyKey == nil {
 		// create the sign and verify keys
 		signKey, verifyKey, err := o.buildSignAndVerifyKeys()
@@ -80,9 +74,6 @@ func DefOpts(o *Options) error {
 	if (o.DecryptKey == nil && !o.VerifyOnlyServer) || o.EncryptKey == nil {
 		return errors.New("EncryptKey and DecryptKey must be defined")
 	}
-	// if o.CsrfEncryptKey == nil {
-	// 	return errors.New("CsrfEncryptKey must be defined")
-	// }
 	if o.Path == "" || o.Domain == "" {
 		return errors.New("Cookie Path and Domain must be defined")
 	}

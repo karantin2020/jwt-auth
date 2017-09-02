@@ -22,20 +22,6 @@ func AuthClaims(r *http.Request) (*ClaimsType, error) {
 	return nil, errors.New("Invalid auth token claims context")
 }
 
-// func GenerateNewCsrfString() (string, error) {
-// 	// note @adam-hanna: allow user's to set length?
-// 	newCsrf, err := generateRandomBytes(tokenLength)
-// 	if err != nil {
-// 		return "", errors.Wrap(err, "Error generate new csrf string")
-// 	}
-// 	bEnc := base64.StdEncoding.EncodeToString(newCsrf)
-// 	if len(bEnc) < tokenLength {
-// 		return "", errors.Wrap(err, "Error generate new csrf string")
-// 	}
-
-// 	return base64.StdEncoding.EncodeToString(newCsrf)[:tokenLength], nil
-// }
-
 // mask returns a unique-per-request token to mitigate the BREACH attack
 // as per http://breachattack.com/#mitigations
 func mask(realToken []byte) string {
@@ -124,7 +110,7 @@ func compareTokenStrings(a, b string) bool {
 	return compareTokens([]byte(a), []byte(a))
 }
 
-// xorToken XORs tokens ([]byte) to provide unique-per-request CSRF tokens. It
+// xorToken XORs tokens ([]byte) to provide unique-per-request tokens. It
 // will return a masked token if the base token is XOR'ed with a one-time-pad.
 // An unmasked token will be returned if a masked token is XOR'ed with the
 // one-time-pad used to mask it.
@@ -143,7 +129,7 @@ func xorToken(a, b []byte) []byte {
 	return res
 }
 
-// xorToken XORs tokens (ыекштп) to provide unique-per-request CSRF tokens. It
+// xorToken XORs tokens (ыекштп) to provide unique-per-request tokens. It
 // will return a masked token if the base token is XOR'ed with a one-time-pad.
 // An unmasked token will be returned if a masked token is XOR'ed with the
 // one-time-pad used to mask it.

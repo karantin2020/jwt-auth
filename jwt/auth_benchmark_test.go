@@ -112,7 +112,6 @@ func TestValidAuthTokenWithCookies(t *testing.T) {
 	}
 	req.AddCookie(rc[authCookieIndex])
 	req.AddCookie(rc[refreshCookieIndex])
-	// req.Header.Add("X-CSRF-Token", resp.Header.Get("X-CSRF-Token"))
 
 	// b.ResetTimer()
 
@@ -174,8 +173,6 @@ func TestValidAuthTokenWithCookies(t *testing.T) {
 // 	// form := url.Values{}
 // 	// form.Add("X-Auth-Token", authTokenString)
 // 	// form.Add("X-Refresh-Token", refreshTokenString)
-// 	// form.Add("X-CSRF-Token", c.CsrfString)
-// 	// // log.Println(authTokenString, refreshTokenString, c.CsrfString)
 
 // 	// req, reqErr := http.NewRequest("POST", ts.URL, strings.NewReader(form.Encode()))
 // 	// now test json encoded tokens
@@ -184,7 +181,6 @@ func TestValidAuthTokenWithCookies(t *testing.T) {
 // 	if reqErr != nil {
 // 		b.Fatal("Error building request for testing; err: %v", reqErr)
 // 	}
-// 	req.Header.Add("X-CSRF-Token", c.CsrfString)
 // 	req.Header.Set("Content-Type", "application/json")
 // 	// req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
@@ -269,7 +265,6 @@ func TestExpiredAuthTokenWithCookies(t *testing.T) {
 	}
 	req.AddCookie(rc[authCookieIndex])
 	req.AddCookie(rc[refreshCookieIndex])
-	// req.Header.Add("X-CSRF-Token", resp.Header.Get("X-CSRF-Token"))
 
 	// need to sleep to check expiry time differences
 	duration := time.Duration(1100) * time.Millisecond // Pause
@@ -598,7 +593,7 @@ func TestAuthMiddlewareChi(t *testing.T) {
 func testServer(authUrl, tokenUrl, authTokenName, refreshTokenName string,
 	bearer bool, wait time.Duration, wantErr bool, t *testing.T) {
 	// get credentials
-	authCred, err := client.GetCredentials(authUrl, bearer, authTokenName, refreshTokenName /*"X-CSRF-Token", */, time.Second*3)
+	authCred, err := client.GetCredentials(authUrl, bearer, authTokenName, refreshTokenName, time.Second*3)
 	if err != nil {
 		t.Errorf("Couldn't get credentials from test server; Err: %v", err)
 		return
@@ -620,7 +615,6 @@ func testServer(authUrl, tokenUrl, authTokenName, refreshTokenName string,
 		req.Header.Add(authTokenName, authCred.AuthTokenHeader)
 		req.Header.Add(refreshTokenName, authCred.RefreshTokenHeader)
 	}
-	// req.Header.Add("X-CSRF-Token", authCred.CSRFToken)
 	// need to sleep to check expiry time differences
 	time.Sleep(wait)
 	res, err := cl.Do(req)

@@ -13,15 +13,11 @@ import (
 )
 
 type credentials struct {
-	// CsrfString string
-
 	AuthToken    *ClaimsType
 	RefreshToken *ClaimsType
 
 	verifyAuthToken    func(r *http.Request) error
 	verifyRefreshToken func(r *http.Request) error
-
-	// csrfEncrypter jose.Encrypter
 
 	options credentialsOptions
 }
@@ -58,11 +54,6 @@ func (a *Auth) getCredentials(r *http.Request, c *credentials) error {
 		return errors.Wrap(err, "Auth.getCredentials: Error get refresh claims")
 	}
 	c.RefreshToken = cr
-	// cs, err := a.csrfStore.Get(r)
-	// if err != nil {
-	// 	return errors.Wrap(err, "Auth.getCredentials: Error get csrf string")
-	// }
-	// c.CsrfString = cs
 
 	c.verifyAuthToken = a.verifyAuthToken
 	c.verifyRefreshToken = a.verifyRefreshToken
@@ -79,12 +70,6 @@ func (a *Auth) getCredentials(r *http.Request, c *credentials) error {
 }
 
 func (a *Auth) newCredentials(c *credentials, claims *ClaimsType) error {
-	// newCsrfString, err := GenerateNewCsrfString()
-	// if err != nil {
-	// 	return errors.Wrap(err, "Error generating new csrf string")
-	// }
-	// c.CsrfString = newCsrfString
-
 	c.options.authTokenValidTime = a.options.AuthTokenValidTime
 	c.options.refreshTokenValidTime = a.options.RefreshTokenValidTime
 	c.options.checkTokenId = a.checkTokenId
@@ -103,7 +88,6 @@ func (a *Auth) newCredentials(c *credentials, claims *ClaimsType) error {
 		c.RefreshToken = refreshClaims.(*ClaimsType)
 	}
 	c.AuthToken.ID = tokenId
-	// c.AuthToken.Csrf = newCsrfString
 	if int64(c.AuthToken.Expiry) == 0 {
 		c.AuthToken.Expiry = jwt.NewNumericDate(time.Now().UTC().Add(a.options.AuthTokenValidTime))
 	}
@@ -115,7 +99,6 @@ func (a *Auth) newCredentials(c *credentials, claims *ClaimsType) error {
 	}
 
 	c.RefreshToken.ID = tokenId
-	// c.RefreshToken.Csrf = newCsrfString
 	if int64(c.RefreshToken.Expiry) == 0 {
 		c.RefreshToken.Expiry = jwt.NewNumericDate(time.Now().UTC().Add(a.options.RefreshTokenValidTime))
 	}
@@ -144,18 +127,10 @@ func (a *Auth) setCredentials(w http.ResponseWriter, c *credentials) error {
 	if err != nil {
 		return errors.Wrap(err, "Error save refresh JWT claims")
 	}
-	// err = a.csrfStore.Save(c.CsrfString, w)
-	// if err != nil {
-	// 	return errors.Wrap(err, "Error save scrf token")
-	// }
 	return nil
 }
 
 func (c *credentials) Validate(r *http.Request) error {
-	// err := c.validateCsrf()
-	// if err != nil {
-	// 	return errors.Wrap(err, "credentials.Validate: Error validate csrf string")
-	// }
 	if c.AuthToken.ID != c.RefreshToken.ID || !c.options.checkTokenId(c.AuthToken.ID) {
 		return errors.New("credentials.Validate: Tokens ID is not valid")
 	}
@@ -177,20 +152,6 @@ func (c *credentials) Validate(r *http.Request) error {
 	return nil
 }
 
-// func (c *credentials) validateCsrf() error {
-// 	// note @adam-hanna: check csrf in refresh token? Careful! These tokens are
-// 	// 									 coming from a request, and the csrf in the credential may have been
-// 	//								   updated!
-// 	if c.CsrfString != c.AuthToken.Csrf {
-// 		return errors.New("credentials.validateCsrf: CSRF token doesn't match value in auth token")
-// 	}
-// 	if c.CsrfString != c.RefreshToken.Csrf {
-// 		return errors.New("credentials.validateCsrf: CSRF token doesn't match value in refresh token")
-// 	}
-
-// 	return nil
-// }
-
 func (c *credentials) RenewAuthToken(r *http.Request) error {
 	if !c.options.checkTokenId(c.RefreshToken.ID) {
 		return errors.New("Refresh token is not valid")
@@ -205,18 +166,10 @@ func (c *credentials) RenewAuthToken(r *http.Request) error {
 			return errors.Wrap(err, "RenewAuthToken error: validate refresh token")
 		}
 	}
-	// nope, the refresh token has not expired
-	// issue a new tokens with a new csrf and update all expiries
-	// newCsrfString, err := GenerateNewCsrfString()
-	// if err != nil {
-	// 	return errors.Wrap(err, "Error generate csrf string")
-	// }
-
-	// c.CsrfString = newCsrfString
 
 	err = c.updateExpiry()
 	if err != nil {
-		return errors.Wrap(err, "Error update csrf and expiry")
+		return errors.Wrap(err, "Error update expiry")
 	}
 	return nil
 }
@@ -234,10 +187,8 @@ func from(req *http.Request) string {
 	return ip
 }
 
-func (c *credentials) updateExpiry( /*newCsrfString string*/ ) error {
+func (c *credentials) updateExpiry() error {
 	c.AuthToken.Expiry = jwt.NewNumericDate(time.Now().UTC().Add(c.options.authTokenValidTime))
 	c.RefreshToken.Expiry = jwt.NewNumericDate(time.Now().UTC().Add(c.options.refreshTokenValidTime))
-	// c.AuthToken.Csrf = newCsrfString
-	// c.RefreshToken.Csrf = newCsrfString
 	return nil
 }
