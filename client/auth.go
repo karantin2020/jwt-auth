@@ -13,18 +13,18 @@ type AuthTokens struct {
 	AuthTokenCookie    *http.Cookie
 	RefreshTokenHeader string
 	RefreshTokenCookie *http.Cookie
-	CSRFToken          string
+	// CSRFToken          string
 }
 
 type JWTAuthTokens struct {
 	Bearer       bool
 	AuthToken    string
 	RefreshToken string
-	CSRFToken    string
+	// CSRFToken    string
 }
 
 func GetCredentials(authUrl string, bearer bool,
-	authName, refreshName, csrfName string, timeout time.Duration) (*AuthTokens, error) {
+	authName, refreshName /*, csrfName*/ string, timeout time.Duration) (*AuthTokens, error) {
 	// get credentials
 	cl := &http.Client{
 		Timeout: timeout,
@@ -39,12 +39,12 @@ func GetCredentials(authUrl string, bearer bool,
 		return nil, errors.Wrap(err, "Error in GetCredentials: couldn't send request to auth server")
 	}
 
-	return GrabAuthTokens(resp, authName, refreshName, csrfName)
+	return GrabAuthTokens(resp, authName, refreshName /*, csrfName*/)
 }
 
-func GrabAuthTokens(resp *http.Response, authName, refreshName, csrfName string) (*AuthTokens, error) {
+func GrabAuthTokens(resp *http.Response, authName, refreshName /*, csrfName*/ string) (*AuthTokens, error) {
 	tok := AuthTokens{}
-	tok.CSRFToken = resp.Header.Get(csrfName)
+	// tok.CSRFToken = resp.Header.Get(csrfName)
 
 	rc := resp.Cookies()
 	for i, cookie := range rc {
@@ -54,14 +54,14 @@ func GrabAuthTokens(resp *http.Response, authName, refreshName, csrfName string)
 			tok.RefreshTokenCookie = rc[i]
 		}
 	}
-	if tok.AuthTokenCookie != nil && tok.RefreshTokenCookie != nil && tok.CSRFToken != "" {
+	if tok.AuthTokenCookie != nil && tok.RefreshTokenCookie != nil /*&& tok.CSRFToken != ""*/ {
 		tok.Bearer = false
 		return &tok, nil
 	}
 
 	tok.AuthTokenHeader = resp.Header.Get(authName)
 	tok.RefreshTokenHeader = resp.Header.Get(refreshName)
-	if tok.AuthTokenHeader != "" || tok.RefreshTokenHeader != "" && tok.CSRFToken != "" {
+	if tok.AuthTokenHeader != "" || tok.RefreshTokenHeader != "" /*&& tok.CSRFToken != ""*/ {
 		tok.Bearer = true
 		return &tok, nil
 	}
@@ -74,13 +74,13 @@ func GrabAuthTokens(resp *http.Response, authName, refreshName, csrfName string)
 		if err != nil {
 			return nil, errors.Wrap(err, "Couldn't Unmarshal response body")
 		}
-		if jwtTok.AuthToken != "" || jwtTok.RefreshToken != "" || jwtTok.CSRFToken != "" {
+		if jwtTok.AuthToken != "" || jwtTok.RefreshToken != "" /*|| jwtTok.CSRFToken != ""*/ {
 			if !jwtTok.Bearer {
-				return nil, errors.New("Invalid bearer type")
+				return nil, errors.New("Invalid bearer type in jwt body response")
 			}
 			tok.AuthTokenHeader = jwtTok.AuthToken
 			tok.RefreshTokenHeader = jwtTok.RefreshToken
-			tok.CSRFToken = jwtTok.CSRFToken
+			// tok.CSRFToken = jwtTok.CSRFToken
 			return &tok, nil
 		}
 	}

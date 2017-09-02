@@ -11,7 +11,7 @@ import (
 type Auth struct {
 	authStore    *jwtStore
 	refreshStore *jwtStore
-	csrfStore    *mixStore
+	// csrfStore    *mixStore
 
 	options Options
 
@@ -32,7 +32,7 @@ const (
 	defaultAuthTokenValidTime     = 10 * time.Minute
 	defaultBearerAuthTokenName    = "X-Auth-Token"
 	defaultBearerRefreshTokenName = "X-Refresh-Token"
-	defaultCSRFTokenName          = "X-CSRF-Token"
+	// defaultCSRFTokenName          = "X-CSRF-Token"
 	defaultCookieAuthTokenName    = "AuthToken"
 	defaultCookieRefreshTokenName = "RefreshToken"
 	authTokenKey                  = "jwtAuth.jwt.auth.Token"
@@ -50,7 +50,7 @@ type AuthTokens struct {
 	Bearer       bool
 	AuthToken    string
 	RefreshToken string
-	CSRFToken    string
+	// CSRFToken    string
 }
 
 var (
@@ -131,7 +131,7 @@ func (a *Auth) setOptions(o *Options) error {
 		return errors.Wrap(err, "Error creating refresh store")
 	}
 	a.refreshStore = rs
-	a.csrfStore = &mixStore{o.CSRFTokenName}
+	// a.csrfStore = &mixStore{o.CSRFTokenName}
 
 	a.options = *o
 
@@ -355,7 +355,7 @@ func (a *Auth) IssueNewTokens(w http.ResponseWriter, claims *ClaimsType) error {
 func (a *Auth) NullifyTokens(tokenID string, w http.ResponseWriter) error {
 	a.authStore.Revoke(w)
 	a.refreshStore.Revoke(w)
-	a.csrfStore.Save("", w)
+	// a.csrfStore.Save("", w)
 
 	err := a.revokeTokenByID(tokenID)
 	if err != nil {

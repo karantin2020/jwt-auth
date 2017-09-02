@@ -105,12 +105,12 @@ type claimStore interface {
 
 // jwtStore is used to store JWT tokens in request/response header.
 type jwtStore struct {
-	bearerTokens        bool
-	tokenName           string
-	encrypt             bool
-	signer              jose.Signer
-	encrypter           jose.Encrypter
-	csrfEncrypter       jose.Encrypter
+	bearerTokens bool
+	tokenName    string
+	encrypt      bool
+	signer       jose.Signer
+	encrypter    jose.Encrypter
+	// csrfEncrypter       jose.Encrypter
 	signingMethodString string
 	encryptMethodString string
 	signKey             interface{}
@@ -165,18 +165,18 @@ func initJWTStore(js *jwtStore) error {
 			js.signingMethodString, js.signKey, js.encryptMethodString)
 	}
 
-	csrfEnc, err := jose.NewEncrypter(
-		jose.ContentEncryption(js.encryptMethodString),
-		jose.Recipient{
-			Algorithm: jose.DIRECT,
-			Key:       js.encryptKey,
-		},
-		&jose.EncrypterOptions{},
-	)
-	if err != nil {
-		return errors.Wrap(err, "Couldn't create new encrypter")
-	}
-	js.csrfEncrypter = csrfEnc
+	// csrfEnc, err := jose.NewEncrypter(
+	// 	jose.ContentEncryption(js.encryptMethodString),
+	// 	jose.Recipient{
+	// 		Algorithm: jose.DIRECT,
+	// 		Key:       js.encryptKey,
+	// 	},
+	// 	&jose.EncrypterOptions{},
+	// )
+	// if err != nil {
+	// 	return errors.Wrap(err, "Couldn't create new encrypter")
+	// }
+	// js.csrfEncrypter = csrfEnc
 
 	if !js.encrypt {
 		sig, err := jose.NewSigner(jose.SigningKey{
@@ -257,15 +257,15 @@ func (js jwtStore) ParseJWT(tokenString string) (*ClaimsType, error) {
 		if err := tok.Claims(js.verifyKey, &cl); err != nil {
 			return nil, errors.Wrap(err, "Error verify signed JWT, invalid verify key")
 		}
-		parsed, err := jose.ParseEncrypted(cl.Csrf)
-		if err != nil {
-			return nil, errors.Wrapf(err, "error in parse csrf")
-		}
-		output, err := parsed.Decrypt(js.decryptKey.([]byte))
-		if err != nil {
-			return nil, errors.Wrapf(err, "error on decrypt jwt claims csrf string, invalid decrypt key")
-		}
-		cl.Csrf = string(output)
+		// parsed, err := jose.ParseEncrypted(cl.Csrf)
+		// if err != nil {
+		// 	return nil, errors.Wrapf(err, "error in parse csrf")
+		// }
+		// output, err := parsed.Decrypt(js.decryptKey.([]byte))
+		// if err != nil {
+		// 	return nil, errors.Wrapf(err, "error on decrypt jwt claims csrf string, invalid decrypt key")
+		// }
+		// cl.Csrf = string(output)
 
 	}
 	return &cl, nil
@@ -280,17 +280,17 @@ func (js jwtStore) Encrypt(c *ClaimsType) (string, error) {
 
 // Save stores the JWT token in response
 func (js jwtStore) Save(c *ClaimsType, w http.ResponseWriter) error {
-	if !js.encrypt {
-		csrfEncoded, err := js.csrfEncrypter.Encrypt([]byte(c.Csrf))
-		if err != nil {
-			return errors.Wrap(err, "Error encrypt claims csrf")
-		}
-		ce, err := csrfEncoded.CompactSerialize()
-		if err != nil {
-			return errors.Wrap(err, "Error encrypt compact serialize claims csrf")
-		}
-		c.Csrf = ce
-	}
+	// if !js.encrypt {
+	// 	csrfEncoded, err := js.csrfEncrypter.Encrypt([]byte(c.Csrf))
+	// 	if err != nil {
+	// 		return errors.Wrap(err, "Error encrypt claims csrf")
+	// 	}
+	// 	ce, err := csrfEncoded.CompactSerialize()
+	// 	if err != nil {
+	// 		return errors.Wrap(err, "Error encrypt compact serialize claims csrf")
+	// 	}
+	// 	c.Csrf = ce
+	// }
 	token, err := js.Encrypt(c)
 	if err != nil {
 		return errors.Wrap(err, "Error encrypt claims")
@@ -342,14 +342,17 @@ func (ms mixStore) Get(r *http.Request) (string, error) {
 	}
 
 	auth := r.Header.Get("Authorization")
+	if auth == "" {
+		return auth, errors.New("No mixStore string found in request")
+	}
 	tokenString = strings.Replace(auth, "Bearer", "", 1)
 	tokenString = strings.Replace(tokenString, " ", "", -1)
 	if tokenString == "" {
-		return tokenString, errors.New("No CSRF string found in request")
+		return tokenString, errors.New("No mixStore string found in request")
 	}
 	byteCsrfString := unmask(tokenString)
 	if byteCsrfString == nil {
-		return "", errors.New("Invalid CSRF string in request")
+		return "", errors.New("Invalid mixStore string in request")
 	}
 
 	return string(byteCsrfString), nil

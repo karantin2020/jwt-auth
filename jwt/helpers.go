@@ -22,19 +22,19 @@ func AuthClaims(r *http.Request) (*ClaimsType, error) {
 	return nil, errors.New("Invalid auth token claims context")
 }
 
-func GenerateNewCsrfString() (string, error) {
-	// note @adam-hanna: allow user's to set length?
-	newCsrf, err := generateRandomBytes(tokenLength)
-	if err != nil {
-		return "", errors.Wrap(err, "Error generate new csrf string")
-	}
-	bEnc := base64.StdEncoding.EncodeToString(newCsrf)
-	if len(bEnc) < tokenLength {
-		return "", errors.Wrap(err, "Error generate new csrf string")
-	}
+// func GenerateNewCsrfString() (string, error) {
+// 	// note @adam-hanna: allow user's to set length?
+// 	newCsrf, err := generateRandomBytes(tokenLength)
+// 	if err != nil {
+// 		return "", errors.Wrap(err, "Error generate new csrf string")
+// 	}
+// 	bEnc := base64.StdEncoding.EncodeToString(newCsrf)
+// 	if len(bEnc) < tokenLength {
+// 		return "", errors.Wrap(err, "Error generate new csrf string")
+// 	}
 
-	return base64.StdEncoding.EncodeToString(newCsrf)[:tokenLength], nil
-}
+// 	return base64.StdEncoding.EncodeToString(newCsrf)[:tokenLength], nil
+// }
 
 // mask returns a unique-per-request token to mitigate the BREACH attack
 // as per http://breachattack.com/#mitigations
