@@ -4,7 +4,6 @@ workspace:
 
 pipeline:
   test1.8:
-    group: test
     image: golang:1.8.3-alpine
     commands:
       - apk update
@@ -18,7 +17,6 @@ pipeline:
       - go test -v
       
   test1.9:
-    group: test
     image: golang:1.9.0-alpine3.6
     commands:
       - apk update
