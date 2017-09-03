@@ -1,6 +1,55 @@
 {
 	"comment": "",
 	"ignore": "test",
-	"package": [],
+	"package": [
+		{
+			"checksumSHA1": "Q7+4qzIIel3AD3Bu4vAxZBUSLVk=",
+			"path": "github.com/go-chi/chi",
+			"revision": "04ec7fc4179604b2390947258f9143eaae23b596",
+			"revisionTime": "2017-09-01T02:07:29Z"
+		},
+		{
+			"checksumSHA1": "SshnwGo3w3gUaXIswP3/vOQp57k=",
+			"path": "github.com/mohae/deepcopy",
+			"revision": "491d3605edfb866af34a48075bd4355ac1bf46ca",
+			"revisionTime": "2017-06-03T00:54:31Z"
+		},
+		{
+			"checksumSHA1": "rJab1YdNhQooDiBWNnt7TLWPyBU=",
+			"path": "github.com/pkg/errors",
+			"revision": "c605e284fe17294bda444b34710735b29d1a9d90",
+			"revisionTime": "2017-05-05T04:36:39Z"
+		},
+		{
+			"checksumSHA1": "GtGbyysLRYLXuY2vL0mUYeN6jL4=",
+			"path": "github.com/urfave/negroni",
+			"revision": "c262547a5086067ebe455c81db5cc52eb298ac3c",
+			"revisionTime": "2017-08-09T18:06:16Z"
+		},
+		{
+			"checksumSHA1": "kzRhtiKHuEtzVtb6xZZU4N9u0Fc=",
+			"path": "gopkg.in/square/go-jose.v2",
+			"revision": "b25e6cab129e4a54675b42ea49d38e9c33ade9e6",
+			"revisionTime": "2017-06-07T17:41:08Z"
+		},
+		{
+			"checksumSHA1": "j94zYNLTvPSnfnqVKJ4LUf++uX4=",
+			"path": "gopkg.in/square/go-jose.v2/cipher",
+			"revision": "b25e6cab129e4a54675b42ea49d38e9c33ade9e6",
+			"revisionTime": "2017-06-07T17:41:08Z"
+		},
+		{
+			"checksumSHA1": "JFun0lWY9eqd80Js2iWsehu1gc4=",
+			"path": "gopkg.in/square/go-jose.v2/json",
+			"revision": "b25e6cab129e4a54675b42ea49d38e9c33ade9e6",
+			"revisionTime": "2017-06-07T17:41:08Z"
+		},
+		{
+			"checksumSHA1": "36YSMA8/CXxaomaM6bXrq1Gt7Rs=",
+			"path": "gopkg.in/square/go-jose.v2/jwt",
+			"revision": "b25e6cab129e4a54675b42ea49d38e9c33ade9e6",
+			"revisionTime": "2017-06-07T17:41:08Z"
+		}
+	],
 	"rootPath": "github.com/karantin2020/jwt-auth"
 }
