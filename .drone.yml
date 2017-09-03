@@ -6,9 +6,11 @@ pipeline:
   test1.8:
     image: golang:1.8.3-alpine
     commands:
+      - cd jwt
       - go test -v
       
   test1.9:
     image: golang:1.9.0-alpine3.6
     commands:
+      - cd jwt
       - go test -v
