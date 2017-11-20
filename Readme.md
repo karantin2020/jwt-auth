@@ -1,4 +1,4 @@
-# jwt-auth
+# jwt-auth ![Build Status](https://jarvi.ga/api/badges/karantin2020/jwt-auth/status.svg)
 jwt auth middleware in goLang
 
 Based on adam-hanna/jwt-auth conceptions
